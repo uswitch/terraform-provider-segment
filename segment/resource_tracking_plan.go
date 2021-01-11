@@ -89,8 +89,7 @@ func resourceTrackingPlanUpdate(ctx context.Context, d *schema.ResourceData, m i
 	var diags diag.Diagnostics
 	client := m.(*segment.Client)
 
-	tpID := d.Id() // how does terraform know which ID to use in this case?
-	// If either of the display name or rules have a change, then update the tracking plan
+	tpID := d.Id() 
 	if d.HasChange("display_name") || d.HasChange("rules") {
 		displayName := d.Get("display_name").(string)
 		rules := d.Get("rules").(string)
