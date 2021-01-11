@@ -12,10 +12,7 @@ provider "segment" {}
 resource "tracking_plan" "test" {
     provider = segment
     
-    display_name = "sri test tracking paln"
+    display_name = "DP test tracking plan update2"
     rules = ""
     
 }
-
-
-
