@@ -48,3 +48,10 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 	}
 	return &c, nil
 }
+
+//   func validateAccessToken(v interface{}, k string) (diag.Diagnostics) {
+// 	  if v == nil || v.(string) == "" {
+// 		  return nil
+// 	  }
+// 	  return nil
+//   }
