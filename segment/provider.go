@@ -13,9 +13,13 @@ func Provider() *schema.Provider {
 	//   Schema: map[string]*schema.Schema{
 	// 		"accessToken": &schema.Schema{
 	// 		  Type:        schema.TypeString,
-	// 		  Optional:    true,
-	// 		//   DefaultFunc: schema.EnvDefaultFunc("segmentAccessToken", nil),
-	// 		  Default: "",
+	// 		  Required:    true,
+	// 		  DefaultFunc: schema.EnvDefaultFunc("ACCESS_TOKEN", nil),
+	// 		},
+	// 		"workSpace": &schema.Schema{
+	// 		  Type: 		schema.TypeString,
+	// 		  Required:  	true, 
+	// 		  DefaultFunc:  schema.EnvDefaultFunc("SEGMENT_WORKSPACE", nil),
 	// 		},
 	// 	},
 	  ResourcesMap: map[string]*schema.Resource{
@@ -23,7 +27,6 @@ func Provider() *schema.Provider {
 	  },
 	  DataSourcesMap: map[string]*schema.Resource{},
 	  ConfigureContextFunc: providerConfigure,
-	//   ConfigKeys: map[string]*schema.Schema{}, Need to pass the segment api key?
 	}
   }
 
@@ -32,7 +35,8 @@ func Provider() *schema.Provider {
 
 	  var diags diag.Diagnostics
 	//   accessToken := d.Get("accessToken").(string)
-	  accessToken := "t5dwvaonRp-UqFZJX0iOStP1Cj8_Ea25z8FuxDQWL8U.sHdro1niwYG3oqrnVxSgBUEYNdNPUNVvNiRRUutCHbc"
+	  accessToken := "pGXsHj5W6O7D0H_rNOuFQcJNNg9HkV8Puj6WTT2fEag.4fcV8s0zmYaA_MiJICKba0z6Jyzg-x-S2FQGxCxNv8M"
+	//   TODO: use env variable for authorization
 	//   workSpace := d.Get("workSpace").(string)
 	  workSpace := "uswitch-sandbox"
 
@@ -53,4 +57,9 @@ func Provider() *schema.Provider {
   }
 
   
-  
+//   func validateAccessToken(v interface{}, k string) (diag.Diagnostics) {
+// 	  if v == nil || v.(string) == "" {
+// 		  return nil
+// 	  }
+// 	  return nil
+//   }
