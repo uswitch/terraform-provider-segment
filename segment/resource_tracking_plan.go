@@ -87,26 +87,28 @@ func resourceTrackingPlanCreate(ctx context.Context, d *schema.ResourceData, m i
 func resourceTrackingPlanUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 
 	var diags diag.Diagnostics
-	// c := m.(*segment.Client)
+	client := m.(*segment.Client)
 
-	// tpID := d.Id() // how does terraform know which ID to use in this case?
-	// // If either of the display name or rules have a change, then update the tracking plan
-	// if d.HasChange("display_name") || d.HasChange("rules") {
-	// 	displayName := d.Get("display_name").(string)
-	// 	rules := d.Get("rules").(segment.Rules)
+	tpID := d.Id() // how does terraform know which ID to use in this case?
+	// If either of the display name or rules have a change, then update the tracking plan
+	if d.HasChange("display_name") || d.HasChange("rules") {
+		displayName := d.Get("display_name").(string)
+		rules := d.Get("rules").(string)
 
-	// 	data := segment.TrackingPlan{
-	// 		DisplayName: displayName,
-	// 		Rules:       rules,
-	// 	}
-	// 	_, err := client.UpdateTrackingPlan(tpID, data)
+		data := segment.TrackingPlan{
+			DisplayName: displayName,
+			Rules:       rules,
+		}
+		tp, err := client.UpdateTrackingPlan(tpID, data)
 
-	// 	if err != nil {
-	// 		return diag.FromErr(err)
-	// 	}
+		log.Println(tp)
 
-	// 	return resourceTrackingPlanRead(ctx, d, m)
-	// }
+		if err != nil {
+			return diag.FromErr(err)
+		}
+
+		return resourceTrackingPlanRead(ctx, d, m)
+	}
 
 	// invoke read to update the state
 
@@ -141,14 +143,16 @@ func resourceTrackingPlanRead(ctx context.Context, d *schema.ResourceData, m int
 
 func resourceTrackingPlanDelete(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
+	log.Println("resourceTrackingplan Delete")
+	client := m.(*segment.Client)
+	id := d.Id()
+	log.Println(id)
+	err := client.DeleteTrackingPlan(d.Id())
+		if err != nil {
+			return diag.FromErr(err)
+		}
 
-	// client := m.(*segment.Client)
-	// 	err := client.DeleteTrackingPlan(d.Id())
-	// 	if err != nil {
-	// 		return diag.FromErr(err)
-	// 	}
-
-	// 	d.SetId("")
+		d.SetId("")
 
 	return diags
 }
