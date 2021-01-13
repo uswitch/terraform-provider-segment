@@ -5,7 +5,7 @@ import (
 	"regexp"
 
 	// "encoding/json"
-	"fmt"
+	// "fmt"
 	"log"
 
 	//   "strconv"
@@ -13,6 +13,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/uswitch/segment-config-go/segment"
 )
 
@@ -34,10 +35,11 @@ func resourceTrackingPlan() *schema.Resource {
 				Type:     schema.TypeString,
 				Required: true,
 			},
-			"rules": {
+			"rules": { //TODO: The rules schema needs more work. an example is provided in the resourceTrackingPlan.txt
 				Type:        schema.TypeString,
 				Optional:    true,
 				Description: "List of identify traits, group traits and events",
+				ValidateFunc: validation.StringIsJSON,
 			},
 			"create_time": {
 				Type:     schema.TypeString,
@@ -75,13 +77,10 @@ func resourceTrackingPlanCreate(ctx context.Context, d *schema.ResourceData, m i
 	// setId shoud utilise the calculated name part in the schema
 	re := regexp.MustCompile(`rs_.*$`)
 	trackingPlanID := re.FindString(respText.Name)
-
-	fmt.Println(trackingPlanID)
-
 	d.SetId(trackingPlanID)
-	// d.SetId("1")
 
 	return diags
+	// TODO: return resourceTrackingPlanRead(ctx, d, m)
 }
 
 func resourceTrackingPlanUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
@@ -109,7 +108,7 @@ func resourceTrackingPlanUpdate(ctx context.Context, d *schema.ResourceData, m i
 		return resourceTrackingPlanRead(ctx, d, m)
 	}
 
-	// invoke read to update the state
+	//TODO: invoke read to update the state return resourceTrackingPlanRead(ctx, d, m)
 
 	return diags
 }
