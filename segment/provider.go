@@ -2,6 +2,7 @@ package segment
 
 import (
 	"context"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/uswitch/segment-config-go/segment"
@@ -10,30 +11,32 @@ import (
 // Provider -
 func Provider() *schema.Provider {
 	return &schema.Provider{
-		//   Schema: map[string]*schema.Schema{
-		// 		"accessToken": &schema.Schema{
-		// 		  Type:        schema.TypeString,
-		// 		  Optional:    true,
-		// 		//   DefaultFunc: schema.EnvDefaultFunc("segmentAccessToken", nil),
-		// 		  Default: "",
-		// 		},
-		// 	},
+		Schema: map[string]*schema.Schema{
+			"access_token": &schema.Schema{
+				Type:        schema.TypeString,
+				Required:    true,
+				DefaultFunc: schema.EnvDefaultFunc("SEGMENT_ACCESS_TOKEN", nil),
+			},
+			"workspace": &schema.Schema{
+				Type:        schema.TypeString,
+				Required:    true,
+				DefaultFunc: schema.EnvDefaultFunc("SEGMENT_WORKSPACE", nil),
+			},
+		},
 		ResourcesMap: map[string]*schema.Resource{
 			"tracking_plan": resourceTrackingPlan(),
 		},
 		DataSourcesMap:       map[string]*schema.Resource{},
 		ConfigureContextFunc: providerConfigure,
-		//   ConfigKeys: map[string]*schema.Schema{}, Need to pass the segment api key?
 	}
 }
 
 func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
-
 	var diags diag.Diagnostics
-	accessToken := d.Get("accessToken").(string)
-	workSpace := d.Get("workSpace").(string)
 
-	if (accessToken != "") && (workSpace != "") {
+	accessToken := d.Get("access_token").(string)
+	workSpace := d.Get("workspace").(string)
+	if accessToken != "" && workSpace != "" {
 		c, err := segment.NewClient(&accessToken, &workSpace)
 		if err != nil {
 			return nil, diag.FromErr(err)
@@ -48,10 +51,3 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 	}
 	return &c, nil
 }
-
-//   func validateAccessToken(v interface{}, k string) (diag.Diagnostics) {
-// 	  if v == nil || v.(string) == "" {
-// 		  return nil
-// 	  }
-// 	  return nil
-//   }
