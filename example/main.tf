@@ -1,0 +1,20 @@
+terraform {
+  required_providers {
+    segment = {
+      source = "uswitch.com/segment/segment"
+      version = "~> 0.0.9"
+    }
+  }
+}
+
+provider "segment" {
+  access_token = "<access-token>"
+	workspace = "<workspace>"
+}
+
+resource "tracking_plan" "test" {
+    provider = segment
+
+    display_name = "AW test tracking plan"
+    rules = file("./rules/test_tracking_plan/rules.json")
+}
