@@ -1,0 +1,79 @@
+{
+  "global": {
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "properties": {
+      "context": {
+        "type": "object",
+        "properties": {
+          "context_prop_1": {
+            "type": [
+              "object"
+            ]
+          }
+        },
+        "required": [
+          "context_prop_1"
+        ]
+      },
+      "properties": {
+        "type": "object",
+        "properties": {
+          "page_name": {
+            "type": [
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "page_name"
+        ]
+      },
+      "traits": {}
+    }
+  },
+  "events": [
+    {
+      "name": "Test Event Clicked",
+      "description": "A simple test event",
+      "rules": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "traits": {},
+          "properties": {
+            "required": [
+              "user_id",
+              "email"
+            ],
+            "type": "object",
+            "properties": {
+              "user_id": {
+                "description": "unique id of the user",
+                "type": [
+                  "string"
+                ]
+              },
+              "email": {
+                "description": "user email",
+                "type": [
+                  "string"
+                ]
+              },
+              "test_prop": {
+                "description": "test prop",
+                "type": [
+                  "integer"
+                ]
+              }
+            }
+          },
+          "required": [
+            "properties"
+          ]
+        },
+        "version": 1
+      }
+    }
+  ]
+}
