@@ -36,18 +36,16 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 
 	accessToken := d.Get("access_token").(string)
 	workSpace := d.Get("workspace").(string)
-	if accessToken != "" && workSpace != "" {
-		c, err := segment.NewClient(&accessToken, &workSpace)
-		if err != nil {
-			return nil, diag.FromErr(err)
-		}
 
+	if accessToken != "" && workSpace != "" {
+		c := segment.NewClient(accessToken, workSpace)
 		return c, diags
 	}
 
-	c, err := segment.NewClient(nil, nil)
-	if err != nil {
-		return nil, diag.FromErr(err)
-	}
-	return &c, nil
+	diags = append(diags, diag.Diagnostic{
+		Severity: diag.Error,
+		Summary:  "Unable to create Segment Config API client",
+		Detail:   "Access token and workspace values cannot be empty",
+	})
+	return nil, diags
 }
