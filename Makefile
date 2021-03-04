@@ -1,4 +1,4 @@
-VERSION=0.0.9
+VERSION=0.1.0
 OS:=$(shell uname -s | tr '[:upper:]' '[:lower:]')
 # ARCH:=$(shell uname -m)
 ARCH=amd64
