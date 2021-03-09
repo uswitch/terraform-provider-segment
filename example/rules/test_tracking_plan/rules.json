@@ -3,48 +3,23 @@
     "$schema": "http://json-schema.org/draft-04/schema#",
     "type": "object",
     "properties": {
-      "context": {
-        "type": "object",
-        "properties": {
-          "context_prop_1": {
-            "type": [
-              "object"
-            ]
-          }
-        },
-        "required": [
-          "context_prop_1"
-        ]
-      },
-      "properties": {
-        "type": "object",
-        "properties": {
-          "page_name": {
-            "type": [
-              "string"
-            ]
-          }
-        },
-        "required": [
-          "page_name"
-        ]
-      },
+      "context": {},
+      "properties": {},
       "traits": {}
     }
   },
   "events": [
     {
-      "name": "Test Event Clicked",
+      "name": "Test Event",
       "description": "A simple test event",
       "rules": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
-          "traits": {},
+          "context": {},
           "properties": {
             "required": [
-              "user_id",
-              "email"
+              "user_id"
             ],
             "type": "object",
             "properties": {
@@ -53,26 +28,14 @@
                 "type": [
                   "string"
                 ]
-              },
-              "email": {
-                "description": "user email",
-                "type": [
-                  "string"
-                ]
-              },
-              "test_prop": {
-                "description": "test prop",
-                "type": [
-                  "integer"
-                ]
               }
             }
           },
           "required": [
             "properties"
-          ]
-        },
-        "version": 1
+          ],
+          "traits": {}
+        }
       }
     }
   ]
