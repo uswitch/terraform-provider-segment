@@ -1,0 +1,11 @@
+.terraform/
+.terraform*
+terraform.tfstate*
+
+vendor/*
+
+terraform-provider-segment*
+
+crash.log
+*.txt
+.DS_Store
