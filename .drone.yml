@@ -3,6 +3,7 @@ workspace:
   path: src/github.com/uswitch/terraform-provider-segment
 
 pipeline:
-  build: golang:1
-  commands:
-    - make build
+  build: 
+    image: golang:1
+    commands:
+      - make build
