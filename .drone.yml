@@ -1,0 +1,8 @@
+workspace:
+  base: /drone
+  path: src/github.com/uswitch/terraform-provider-segment
+
+pipeline:
+  build: golang:1
+  commands:
+    - make build
