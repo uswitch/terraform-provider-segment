@@ -1,7 +1,6 @@
 #!/bin/bash
 
-echo "Running shell: $0"
-platform=($(echo $1 | tr '.' ' '))
-echo "Building for ${platform[0]} ${platform[1]}"
-export OS=${platform[0]}
-export ARCH=${platform[1]}
+platform=$(echo $1 | tr '.' '\n')
+export OS=$(echo $platform | sed '1!d')
+export ARCH=$(echo $platform | sed '2!d')
+echo "Building for $OS $ARCH"
