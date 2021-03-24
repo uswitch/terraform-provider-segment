@@ -12,7 +12,7 @@ matrix:
 
 pipeline:
   build:
-    image: golang:1
+    image: golang:1-stretch
     commands:
       - bash . bin/set-platform.sh $PLATFORM
       - make build
