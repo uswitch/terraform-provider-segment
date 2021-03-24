@@ -15,4 +15,5 @@ pipeline:
         from_secret: github_token
       files:
         - build/*
-    when: tag
+    when:
+      event: tag
