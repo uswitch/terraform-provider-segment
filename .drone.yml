@@ -14,7 +14,7 @@ pipeline:
   build:
     image: golang:1-stretch
     commands:
-      - $1=$PLATFORM . bin/set-platform.sh
+      - . bin/set-platform.sh
       - make build
 
   publish:
