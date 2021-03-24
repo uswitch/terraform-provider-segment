@@ -3,6 +3,7 @@
 terraform.tfstate*
 
 vendor/*
+build
 
 terraform-provider-segment*
 

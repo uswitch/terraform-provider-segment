@@ -8,3 +8,6 @@ build:
 	GOOS=$(OS) GOARCH=$(ARCH) go build -o terraform-provider-segment
 	mkdir -p ~/.terraform.d/plugins/$(PROVIDER_PATH)
 	cp terraform-provider-segment ~/.terraform.d/plugins/$(PROVIDER_PATH)
+
+release:
+	./bin/release.sh
