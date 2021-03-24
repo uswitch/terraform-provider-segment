@@ -2,8 +2,16 @@ workspace:
   base: /drone
   path: src/github.com/uswitch/terraform-provider-segment
 
+matrix:
+  PLATFORM:
+    - darwin.amd64
+    - linux.386
+    - linux.amd64
+    - windows.386
+    - windows.amd64
+
 pipeline:
-  build: 
+  build:
     image: golang:1
     commands:
       - make build
@@ -13,14 +21,14 @@ pipeline:
       event: tag
     image: golang:1
     commands:
-      - make release
+      - . bin/set-platform.sh $PLATFORM
+      - make build
 
   publish:
     when:
       event: tag
     image: plugins/github-release
     settings:
-      api_key:
-        from_secret: github_token
+      api_key: ${GITHUB_TOKEN}
       files:
         - build/*
