@@ -14,7 +14,6 @@ pipeline:
   build:
     image: golang:1-stretch
     commands:
-      - chsh -s /bin/bash
       - . bin/set-platform.sh $PLATFORM
       - make build
 

@@ -1,5 +1,7 @@
 #!/bin/bash
 
+chsh -s /bin/bash
+
 echo "Running shell: $0"
 cat /etc/shells
 platform=($(echo $1 | tr '.' ' '))
