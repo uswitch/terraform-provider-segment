@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 
 echo "Running shell: $0"
 platform=($(echo $1 | tr '.' ' '))
