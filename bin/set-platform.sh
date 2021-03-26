@@ -1,7 +1,6 @@
 #!/bin/bash
 
 echo "Platform: $PLATFORM"
-P=$(echo $PLATFORM | tr '.' ' ')
-export OS=$(echo $P | sed '1!d')
-export ARCH=$(echo $P | sed '2!d')
+export OS=$(echo $PLATFORM | cut -d '.' -f 1)
+export ARCH=$(echo $PLATFORM | cut -d '.' -f 2)
 echo "Building for $OS $ARCH"
