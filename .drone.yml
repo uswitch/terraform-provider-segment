@@ -22,6 +22,7 @@ pipeline:
       event: tag
     image: plugins/github-release
     settings:
-      api_key: ${GITHUB_TOKEN}
+      api_key:
+        from_secret: GITHUB_TOKEN
       files:
         - build/*
