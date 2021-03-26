@@ -1,4 +1,4 @@
-VERSION=(git describe --tags)
+VERSION=$(shell git describe --tags)
 OS?=$(shell uname -s | tr '[:upper:]' '[:lower:]')
 # ARCH:=$(shell uname -m)
 ARCH?=amd64
