@@ -51,6 +51,9 @@ jobs:
         exclude:
           - os: darwin
             arch: 386
+    env:
+      OS: ${{ matrix.os }}
+      ARCH: ${{ matrix.arch }}
     steps:
       - name: Retrieving cached executables
         uses: actions/cache@v2
@@ -59,9 +62,13 @@ jobs:
             build/
           key: ${{ github.sha }}-${{ matrix.os }}-${{ matrix.arch }}
 
+      - name: Setting version from git
+        id: get_version
+        run: bin/set-version-ci.sh
+
       - name: Publishing executables to release
         uses: meeDamian/github-release@2.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          files: build/
+          files: build/terraform-provider-segment_${{ steps.get_version.outputs.VERSION }}_${{ matrix.os }}_${{ matrix.arch }}
           allow_override: true
