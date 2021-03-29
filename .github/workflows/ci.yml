@@ -25,7 +25,6 @@ jobs:
       - run: echo ${{ github.event }}
       - name: Setting version from git
         id: get_version
-        if: github.event_name	== 'release'
         run: bin/set-version-ci.sh
 
       - name: Caching executables
