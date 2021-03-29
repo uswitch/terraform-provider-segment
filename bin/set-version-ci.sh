@@ -1,6 +1,6 @@
-echo "Triggered by $GITHUB_EVENT_NAME"
+echo "Triggered for ref: $GITHUB_REF"
 version=${GITHUB_SHA}
-if [[ "$GITHUB_EVENT_NAME" == *"release"* ]]; then
+if [[ "$GITHUB_REF" == *"/tags/"* ]]; then
   version="${GITHUB_REF/refs\/tags\//}"
 fi
 
