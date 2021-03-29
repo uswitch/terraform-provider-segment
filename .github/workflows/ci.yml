@@ -5,17 +5,19 @@ on:
   release:
     types: [created]
 
+defaults:
+  strategy:
+    matrix:
+      os: [darwin, linux, windows]
+      arch: [amd64, 386]
+      exclude:
+        - os: darwin
+          arch: 386
+
 jobs:
   build:
     name: Build executables
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        os: [darwin, linux, windows]
-        arch: [amd64, 386]
-        exclude:
-          - os: darwin
-            arch: 386
     env:
       OS: ${{ matrix.os }}
       ARCH: ${{ matrix.arch }}
@@ -43,6 +45,5 @@ jobs:
         with:
           path: |
             build/
-          key: ${{ github.sha }}-
-          restore-keys: ${{ github.sha }}-
+          key: ${{ github.sha }}-${{ matrix.os }}-${{ matrix.arch }}
       - run: ls build
