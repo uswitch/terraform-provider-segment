@@ -39,22 +39,8 @@ jobs:
         env:
           VERSION: ${{ steps.get_version.outputs.VERSION }}
 
-  create-release:
-    name: Deploy executables to release
-    needs: [build]
-    runs-on: ubuntu-latest
-    if: ${{ contains(github.ref, 'tags') }}
-    steps:
-      - name: Publishing executables to release
-        uses: softprops/action-gh-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          draft: true
-
-  
   upload-release-assets:
-    name: Deploy executables to release
+    name: Upload executables to release
     needs: [create-release]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -87,17 +73,3 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: build/terraform-provider-segment_${{ steps.get_version.outputs.VERSION }}_${{ matrix.os }}_${{ matrix.arch }}
-
-
-  publish-release:
-    name: Deploy executables to release
-    needs: [upload-release-assets]
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
-    steps:
-      - name: Publishing executables to release
-        uses: softprops/action-gh-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          draft: false
