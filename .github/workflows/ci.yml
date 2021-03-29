@@ -58,9 +58,10 @@ jobs:
           path: |
             build/
           key: ${{ github.sha }}-${{ matrix.os }}-${{ matrix.arch }}
-          
+
       - name: Publishing executables to release
         uses: meeDamian/github-release@2.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           files: build/
+          allow_override: true
