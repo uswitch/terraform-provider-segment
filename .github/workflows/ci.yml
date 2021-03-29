@@ -44,5 +44,5 @@ jobs:
           path: |
             build/
           key: ${{ github.sha }}-
-          restore-key: ${{ github.sha }}-
+          restore-keys: ${{ github.sha }}-
       - run: ls build
