@@ -22,7 +22,7 @@ jobs:
         with:
           path: |
             build
-          key: $GITHUB_SHA
+          key: $GITHUB_SHA-${{ matrix.os }}-${{ matrix.arch }}
 
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
@@ -40,5 +40,6 @@ jobs:
         with:
           path: |
             build
-          key: $GITHUB_SHA
+          key: $GITHUB_SHA-
+          restore-key: $GITHUB_SHA-
       - run: ls build
