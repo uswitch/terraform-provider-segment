@@ -4,6 +4,7 @@ terraform.tfstate*
 
 vendor/*
 build
+.vscode
 
 terraform-provider-segment*
 
