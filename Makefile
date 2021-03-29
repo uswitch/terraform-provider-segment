@@ -1,4 +1,4 @@
-VERSION=$(DRONE_TAG)
+VERSION?=$(shell git describe --tags --always)
 OS?=$(shell uname -s | tr '[:upper:]' '[:lower:]')
 # ARCH:=$(shell uname -m)
 ARCH?=amd64
