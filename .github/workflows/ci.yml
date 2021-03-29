@@ -21,7 +21,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: |
-            build
+            build/
           key: ${{ github.sha }}-${{ matrix.os }}-${{ matrix.arch }}
 
       - uses: actions/checkout@v2
@@ -34,12 +34,18 @@ jobs:
     name: Deploy executables to release
     needs: [build]
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [darwin, linux, windows]
+        arch: [amd64, 386]
+        exclude:
+          - os: darwin
+            arch: 386
     steps:
-      - name: Caching executables
+      - name: Retrieving cached executables
         uses: actions/cache@v2
         with:
           path: |
-            build
-          key: ${{ github.sha }}-
-          restore-keys: ${{ github.sha }}-
+            build/
+          key: ${{ github.sha }}-${{ matrix.os }}-${{ matrix.arch }}
       - run: ls build
