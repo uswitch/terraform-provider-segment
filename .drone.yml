@@ -16,11 +16,3 @@ pipeline:
     commands:
       - . bin/set-platform.sh
       - make build
-
-  publish:
-    when:
-      event: tag
-    image: plugins/github-release
-    secrets: [ github_token ]
-    files:
-      - build/*
