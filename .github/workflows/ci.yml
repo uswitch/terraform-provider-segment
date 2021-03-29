@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  push:
+
+jobs:
+  build:
+    name: Deploy build artifacts to Github Release
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [darwin, linux, windows]
+        arch: [amd64, 386]
+        exclude:
+          - os: darwin
+            arch: 386
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '1.15'
+      - run: make build
