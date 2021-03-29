@@ -39,7 +39,15 @@ jobs:
         env:
           VERSION: ${{ steps.get_version.outputs.VERSION }}
 
-  upload-release-assets:
+      - name: Build Slack Notification
+        if: failure() && startsWith(github.ref, 'refs/tags/')
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_TITLE: Release ${{ steps.get_version.outputs.VERSION }} failed to build
+          SLACK_MESSAGE: Build failed for ${{ matrix.os }} ${{ matrix.arch }}
+
+  release:
     name: Upload executables to release
     needs: [build]
     runs-on: ubuntu-latest
@@ -73,3 +81,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: build/terraform-provider-segment_${{ steps.get_version.outputs.VERSION }}_${{ matrix.os }}_${{ matrix.arch }}
+
+      - name: Release Slack Notification
+        if: failure()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_TITLE: Release ${{ steps.get_version.outputs.VERSION }} failed
+          SLACK_MESSAGE: Executable for ${{ matrix.os }} ${{ matrix.arch }} failed to upload
