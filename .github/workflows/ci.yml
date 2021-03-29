@@ -43,6 +43,7 @@ jobs:
     name: Deploy executables to release
     needs: [build]
     runs-on: ubuntu-latest
+    if: ${{ contains(github.ref, 'tags') }}
     strategy:
       matrix:
         os: [darwin, linux, windows]
@@ -57,4 +58,9 @@ jobs:
           path: |
             build/
           key: ${{ github.sha }}-${{ matrix.os }}-${{ matrix.arch }}
-      - run: ls build
+          
+      - name: Publishing executables to release
+        uses: meeDamian/github-release@2.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          files: build/
