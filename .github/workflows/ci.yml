@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    name: Deploy build artifacts to Github Release
+    name: Build executables
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -17,8 +17,28 @@ jobs:
           - os: darwin
             arch: 386
     steps:
+      - name: Caching executables
+        uses: actions/cache@v2
+        with:
+          path: |
+            build
+          key: ${{ GITHUB_SHA }}
+
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
           go-version: '1.15'
       - run: make build
+  
+  release:
+    name: Deploy executables to release
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Caching executables
+        uses: actions/cache@v2
+        with:
+          path: |
+            build
+          key: ${{ GITHUB_SHA }}
+      - run: ls build
