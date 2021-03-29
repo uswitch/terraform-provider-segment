@@ -41,5 +41,5 @@ jobs:
           path: |
             build
           key: $GITHUB_SHA-
-          restore-key: $GITHUB_SHA-
+          restore-keys: $GITHUB_SHA-
       - run: ls build
