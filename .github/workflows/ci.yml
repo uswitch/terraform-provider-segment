@@ -40,5 +40,5 @@ jobs:
         with:
           path: |
             build
-          key: ${{ GITHUB_SHA }}
+          key: $GITHUB_SHA
       - run: ls build
