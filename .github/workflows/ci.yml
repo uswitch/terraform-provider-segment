@@ -25,10 +25,12 @@ jobs:
       - run: echo ${{ github.event }}
       - name: Setting version from git
         id: get_version
-        run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
-      - env:
-          VERSION: ${{ steps.get_version.outputs.VERSION }}
         if: github.event_name	== 'release'
+        run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+      - name: Setting version from git
+        id: get_version
+        if: github.event_name	!= 'release'
+        run: echo ::set-output name=VERSION::${GITHUB_SHA}
 
       - name: Caching executables
         uses: actions/cache@v2
@@ -42,6 +44,8 @@ jobs:
         with:
           go-version: '1.15'
       - run: make build
+        env:
+          VERSION: ${{ steps.get_version.outputs.VERSION }}
   
   release:
     name: Deploy executables to release
