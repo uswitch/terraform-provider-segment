@@ -41,7 +41,7 @@ jobs:
 
   upload-release-assets:
     name: Upload executables to release
-    needs: [create-release]
+    needs: [build]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     strategy:
