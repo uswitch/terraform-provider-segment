@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-  tag:
+  release:
     types: [created]
 
 jobs:
