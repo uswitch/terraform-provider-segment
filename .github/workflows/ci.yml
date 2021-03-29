@@ -55,6 +55,7 @@ jobs:
       OS: ${{ matrix.os }}
       ARCH: ${{ matrix.arch }}
     steps:
+      - uses: actions/checkout@v2
       - name: Retrieving cached executables
         uses: actions/cache@v2
         with:
