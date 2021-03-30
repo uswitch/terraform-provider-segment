@@ -60,6 +60,7 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     strategy:
+      fail-fast: true
       matrix:
         os: [darwin, linux, windows]
         arch: [amd64, 386]
