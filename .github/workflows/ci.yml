@@ -46,6 +46,11 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
           SLACK_TITLE: Release ${{ steps.get_version.outputs.VERSION }} failed to build
           SLACK_MESSAGE: Build failed for ${{ matrix.os }} ${{ matrix.arch }}
+          SLACK_COLOR: ${{job.status}}
+
+      - name: Cleanup failed release
+        if: failure() && startsWith(github.ref, 'refs/tags/')
+        run: git tag -d ${{ steps.get_version.outputs.VERSION }} && git push --tags
 
   release:
     name: Upload executables to release
@@ -89,3 +94,4 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
           SLACK_TITLE: Release ${{ steps.get_version.outputs.VERSION }} failed
           SLACK_MESSAGE: Executable for ${{ matrix.os }} ${{ matrix.arch }} failed to upload
+          SLACK_COLOR: ${{job.status}}
