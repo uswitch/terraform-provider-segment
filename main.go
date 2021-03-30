@@ -8,7 +8,6 @@ import (
 )
 
 func main() {
-	foo
 	plugin.Serve(&plugin.ServeOpts{
 		ProviderFunc: func() *schema.Provider {
 			return segment.Provider()
