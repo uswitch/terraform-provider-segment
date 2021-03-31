@@ -29,7 +29,7 @@ jobs:
         with:
           path: |
             build/
-          key: ${{ github.sha }}-${{ matrix.os }}-${{ matrix.arch }}
+          key: ${{ github.run_id }}-${{ matrix.os }}-${{ matrix.arch }}
 
       - name: Setting version from git
         id: get_version
@@ -77,7 +77,7 @@ jobs:
         with:
           path: |
             build/
-          key: ${{ github.sha }}-${{ matrix.os }}-${{ matrix.arch }}
+          key: ${{ github.run_id }}-${{ matrix.os }}-${{ matrix.arch }}
 
       - name: Setting version from git
         id: get_version
