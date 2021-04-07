@@ -17,7 +17,7 @@ func resourceTrackingPlan() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceTrackingPlanCreate,
 		ReadContext:   resourceTrackingPlanRead,
-		UpdateContext: resourceTrackingPlanUpdate, // todo: update to merge json with event library
+		UpdateContext: resourceTrackingPlanUpdate,
 		DeleteContext: resourceTrackingPlanDelete,
 		SchemaVersion: 1,
 		Schema: map[string]*schema.Schema{
@@ -59,16 +59,15 @@ func resourceTrackingPlan() *schema.Resource {
 func resourceTrackingPlanCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	client := m.(*segment.Client)
 
-	// read rules from json file
+	// Read rules from json file
 	var rules segment.RuleSet
 	if rulesJSON, ok := d.GetOk("rules_json_file"); ok {
-		err := json.Unmarshal([]byte(rulesJSON.(string)), &rules)
-		if err != nil {
+		if err := json.Unmarshal([]byte(rulesJSON.(string)), &rules); err != nil {
 			return diag.FromErr(err)
 		}
 	}
 
-	// read from event library
+	// Read from event library
 	var eventLibs []EventLibrary
 	if eventLibsIntfcs, ok := d.GetOk("import_from"); ok {
 		var eventLibsList = eventLibsIntfcs.([]interface{})
@@ -78,13 +77,13 @@ func resourceTrackingPlanCreate(ctx context.Context, d *schema.ResourceData, m i
 		}
 	}
 
-	// flatten event libraries
+	// Flatten event libraries
 	eventLibsFlat := flattenEventLibs(eventLibs)
 
 	// Convert event library events to Segment type events
 	mergedEvents := eventLibsFlat.convertToSegmentEvents()
 
-	// Merge json schema events with ones from the event library.
+	// Merge json schema events with ones from the event library
 	for _, ruleEvnt := range rules.Events {
 		exists := false
 		for i, mergedEvnt := range mergedEvents {
@@ -100,7 +99,7 @@ func resourceTrackingPlanCreate(ctx context.Context, d *schema.ResourceData, m i
 	}
 	rules.Events = mergedEvents
 
-	// construct the tracking plan
+	// Construct the tracking plan
 	tp := segment.TrackingPlan{
 		DisplayName: d.Get("display_name").(string),
 		Rules:       rules,
@@ -110,7 +109,7 @@ func resourceTrackingPlanCreate(ctx context.Context, d *schema.ResourceData, m i
 		return diag.FromErr(err)
 	}
 
-	// setId shoud utilise the calculated name part in the schema
+	// SetId shoud utilise the calculated name part in the schema
 	re := regexp.MustCompile(`rs_.*$`)
 	trackingPlanID := re.FindString(response.Name)
 	d.SetId(trackingPlanID)
@@ -122,13 +121,10 @@ func resourceTrackingPlanRead(ctx context.Context, d *schema.ResourceData, m int
 	var diags diag.Diagnostics
 	client := m.(*segment.Client)
 
-	// get a tracking plan by ID
 	tp, err := client.GetTrackingPlan(d.Id())
 	if err != nil {
 		return diag.FromErr(err)
 	}
-
-	// set the variables
 	if err := d.Set("name", tp.Name); err != nil {
 		return diag.FromErr(err)
 	}
@@ -142,7 +138,37 @@ func resourceTrackingPlanRead(ctx context.Context, d *schema.ResourceData, m int
 		return diag.FromErr(err)
 	}
 
-	// convert Rules to JSON
+	// Filter out library events so that we can accurately set/compare the source json file
+	// Read from event library
+	var eventLibs []EventLibrary
+	if eventLibsIntfcs, ok := d.GetOk("import_from"); ok {
+		var eventLibsList = eventLibsIntfcs.([]interface{})
+		var err error
+		if eventLibs, err = readEventLibs(eventLibsList); err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
+	// Flatten event libraries
+	eventLibsFlat := flattenEventLibs(eventLibs)
+
+	// Remove library events
+	var sourceEvents []segment.Event
+	for _, evnt := range tp.Rules.Events {
+		inEventLib := false
+		for _, eventLibEvt := range eventLibsFlat.Events {
+			if evnt.Name == eventLibEvt.Name {
+				inEventLib = true
+				break
+			}
+		}
+		if !inEventLib {
+			sourceEvents = append(sourceEvents, evnt)
+		}
+	}
+	tp.Rules.Events = sourceEvents
+
+	// Convert Rules to JSON
 	rulesJSON, err := json.MarshalIndent(tp.Rules, "", "  ")
 	if err != nil {
 		return diag.FromErr(err)
@@ -162,16 +188,15 @@ func resourceTrackingPlanUpdate(ctx context.Context, d *schema.ResourceData, m i
 	if d.HasChanges("display_name", "rules_json_file", "import") {
 		displayName := d.Get("display_name").(string)
 
-		// read rules from json file
+		// Read rules from json file
 		var rules segment.RuleSet
 		if rulesJSON, ok := d.GetOk("rules_json_file"); ok {
-			err := json.Unmarshal([]byte(rulesJSON.(string)), &rules)
-			if err != nil {
+			if err := json.Unmarshal([]byte(rulesJSON.(string)), &rules); err != nil {
 				return diag.FromErr(err)
 			}
 		}
 
-		// read from event library
+		// Read from event library
 		var eventLibs []EventLibrary
 		if eventLibsIntfcs, ok := d.GetOk("import_from"); ok {
 			var eventLibsList = eventLibsIntfcs.([]interface{})
@@ -181,13 +206,13 @@ func resourceTrackingPlanUpdate(ctx context.Context, d *schema.ResourceData, m i
 			}
 		}
 
-		// flatten event libraries
+		// Flatten event libraries
 		eventLibsFlat := flattenEventLibs(eventLibs)
 
 		// Convert event library events to Segment type events
 		mergedEvents := eventLibsFlat.convertToSegmentEvents()
 
-		// Merge json schema events with ones from the event library.
+		// Merge json schema events with ones from the event library
 		for _, ruleEvnt := range rules.Events {
 			exists := false
 			for i, mergedEvnt := range mergedEvents {
@@ -203,13 +228,12 @@ func resourceTrackingPlanUpdate(ctx context.Context, d *schema.ResourceData, m i
 		}
 		rules.Events = mergedEvents
 
-		// construct the tracking plan
+		// Construct the tracking plan
 		tp := segment.TrackingPlan{
 			DisplayName: displayName,
 			Rules:       rules,
 		}
 		_, err := client.UpdateTrackingPlan(tpID, tp)
-
 		if err != nil {
 			return diag.FromErr(err)
 		}
