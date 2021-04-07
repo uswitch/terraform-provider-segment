@@ -2,6 +2,7 @@ package segment
 
 import (
 	"encoding/json"
+	"strconv"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/uswitch/terraform-provider-segment/segment/helpers/hashcode"
@@ -122,7 +123,7 @@ func dataSourceEventLibraryRead(d *schema.ResourceData, m interface{}) error {
 	jsonString := string(jsonDoc)
 
 	d.Set("json", jsonString)
-	d.Set("Id", hashcode.String(jsonString))
+	d.SetId(strconv.Itoa(hashcode.String(jsonString)))
 
 	return nil
 }
