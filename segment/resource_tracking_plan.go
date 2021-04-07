@@ -15,7 +15,7 @@ var client segment.Client
 
 func resourceTrackingPlan() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceTrackingPlanCreate, // todo: update to merge json with event library
+		CreateContext: resourceTrackingPlanCreate,
 		ReadContext:   resourceTrackingPlanRead,
 		UpdateContext: resourceTrackingPlanUpdate, // todo: update to merge json with event library
 		DeleteContext: resourceTrackingPlanDelete,
@@ -159,17 +159,56 @@ func resourceTrackingPlanUpdate(ctx context.Context, d *schema.ResourceData, m i
 	client := m.(*segment.Client)
 
 	tpID := d.Id()
-	if d.HasChange("display_name") || d.HasChange("rules_json_file") {
+	if d.HasChanges("display_name", "rules_json_file", "import") {
 		displayName := d.Get("display_name").(string)
-		// unmarshal rules
-		var rules segment.RuleSet
-		json.Unmarshal([]byte(d.Get("rules_json_file").(string)), &rules)
 
-		data := segment.TrackingPlan{
+		// read rules from json file
+		var rules segment.RuleSet
+		if rulesJSON, ok := d.GetOk("rules_json_file"); ok {
+			err := json.Unmarshal([]byte(rulesJSON.(string)), &rules)
+			if err != nil {
+				return diag.FromErr(err)
+			}
+		}
+
+		// read from event library
+		var eventLibs []EventLibrary
+		if eventLibsIntfcs, ok := d.GetOk("import_from"); ok {
+			var eventLibsList = eventLibsIntfcs.([]interface{})
+			var err error
+			if eventLibs, err = readEventLibs(eventLibsList); err != nil {
+				return diag.FromErr(err)
+			}
+		}
+
+		// flatten event libraries
+		eventLibsFlat := flattenEventLibs(eventLibs)
+
+		// Convert event library events to Segment type events
+		mergedEvents := eventLibsFlat.convertToSegmentEvents()
+
+		// Merge json schema events with ones from the event library.
+		for _, ruleEvnt := range rules.Events {
+			exists := false
+			for i, mergedEvnt := range mergedEvents {
+				if ruleEvnt.Name == mergedEvnt.Name {
+					mergedEvents[i] = ruleEvnt
+					exists = true
+					break
+				}
+			}
+			if !exists {
+				mergedEvents = append(mergedEvents, ruleEvnt)
+			}
+		}
+		rules.Events = mergedEvents
+
+		// construct the tracking plan
+		tp := segment.TrackingPlan{
 			DisplayName: displayName,
 			Rules:       rules,
 		}
-		_, err := client.UpdateTrackingPlan(tpID, data)
+		_, err := client.UpdateTrackingPlan(tpID, tp)
 
 		if err != nil {
 			return diag.FromErr(err)
