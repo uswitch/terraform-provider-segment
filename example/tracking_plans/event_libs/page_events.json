@@ -1,0 +1,67 @@
+{
+    "global": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "context": {},
+        "properties": {},
+        "traits": {}
+      }
+    },
+    "events": [
+      {
+        "name": "Page Viewed",
+        "description": "fired when a user views a page.",
+        "rules": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "context": {},
+            "properties": {
+              "required": [
+                "url"
+              ],
+              "type": "object",
+              "properties": {
+                "url": {
+                  "description": "",
+                  "type": [
+                    "string"
+                  ]
+                },
+                "name": {
+                    "description": "the title of the page",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+              }
+            },
+            "required": [
+              "properties"
+            ],
+            "traits": {}
+          }
+        }
+      }
+    ],
+    "group": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "context": {},
+        "properties": {},
+        "traits": {}
+      }
+    },
+    "identify": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "context": {},
+        "properties": {},
+        "traits": {}
+      }
+    }
+  }

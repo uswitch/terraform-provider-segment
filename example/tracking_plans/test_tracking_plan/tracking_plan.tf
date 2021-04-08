@@ -1,7 +1,3 @@
-module "event_libs" {
-  source = "../../event_libs"
-}
-
 resource "tracking_plan" "test" {
   provider = segment
 
@@ -12,7 +8,7 @@ resource "tracking_plan" "test" {
 
   # Import event libraries
   import_from = [
-    module.event_libs.page_events,
-    module.event_libs.form_events
+    file("${path.module}/../event_libs/page_events.json"),
+    file("${path.module}/../event_libs/form_events.json"),
   ]
 }

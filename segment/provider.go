@@ -26,9 +26,7 @@ func Provider() *schema.Provider {
 		ResourcesMap: map[string]*schema.Resource{
 			"tracking_plan": resourceTrackingPlan(),
 		},
-		DataSourcesMap: map[string]*schema.Resource{
-			"event_library": dataSourceEventLibrary(),
-		},
+		DataSourcesMap:       map[string]*schema.Resource{},
 		ConfigureContextFunc: providerConfigure,
 	}
 }
