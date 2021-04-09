@@ -2,7 +2,7 @@ terraform {
   required_providers {
     segment = {
       source = "uswitch.com/segment/segment"
-      version = "~> 0.1.0"
+      version = ">= 0.1.0"
     }
   }
 }
@@ -12,9 +12,6 @@ provider "segment" {
 	workspace = "uswitch-sandbox"
 }
 
-resource "tracking_plan" "test" {
-    provider = segment
-
-    display_name = "AW test tracking plan"
-    rules = file("./rules/test_tracking_plan/rules.json")
+module "tracking_plans" {
+    source = "./tracking_plans"
 }
