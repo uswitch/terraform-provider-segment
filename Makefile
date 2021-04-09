@@ -8,7 +8,7 @@ EXE=./build/terraform-provider-segment_$(VERSION)_$(OS)_$(ARCH)
 .PHONY: build
 
 build:
-	GOOS=$(OS) GOARCH=$(ARCH) go build -o $(EXE)
+	GOOS=$(OS) GOARCH=$(ARCH) CGO_ENABLED=0 go build -o $(EXE)
 	mkdir -p ~/.terraform.d/plugins/$(PROVIDER_PATH)
 	cp $(EXE) ~/.terraform.d/plugins/$(PROVIDER_PATH)/terraform-provider-segment
 
