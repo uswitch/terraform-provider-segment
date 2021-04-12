@@ -81,21 +81,7 @@ func resourceTrackingPlanCreate(ctx context.Context, d *schema.ResourceData, m i
 	eventLibsFlat := flattenEventLibs(eventLibs)
 
 	// Merge json schema events with ones from the event library
-	var mergedEvents []segment.Event = eventLibsFlat.Events
-	for _, ruleEvnt := range tpRules.Events {
-		exists := false
-		for i, mergedEvnt := range mergedEvents {
-			if ruleEvnt.Name == mergedEvnt.Name {
-				mergedEvents[i] = ruleEvnt
-				exists = true
-				break
-			}
-		}
-		if !exists {
-			mergedEvents = append(mergedEvents, ruleEvnt)
-		}
-	}
-	tpRules.Events = mergedEvents
+	tpRules.Events = mergeEvents(eventLibsFlat.Events, tpRules.Events)
 
 	// Construct the tracking plan
 	tp := segment.TrackingPlan{
@@ -208,21 +194,7 @@ func resourceTrackingPlanUpdate(ctx context.Context, d *schema.ResourceData, m i
 		eventLibsFlat := flattenEventLibs(eventLibs)
 
 		// Merge json schema events with ones from the event library
-		var mergedEvents []segment.Event = eventLibsFlat.Events
-		for _, ruleEvnt := range tpRules.Events {
-			exists := false
-			for i, mergedEvnt := range mergedEvents {
-				if ruleEvnt.Name == mergedEvnt.Name {
-					mergedEvents[i] = ruleEvnt
-					exists = true
-					break
-				}
-			}
-			if !exists {
-				mergedEvents = append(mergedEvents, ruleEvnt)
-			}
-		}
-		tpRules.Events = mergedEvents
+		tpRules.Events = mergeEvents(eventLibsFlat.Events, tpRules.Events)
 
 		// Construct the tracking plan
 		tp := segment.TrackingPlan{
@@ -270,4 +242,22 @@ func readEventLibs(eventLibsJSONSlice []interface{}) ([]segment.RuleSet, error) 
 		decodedEventLibs = append(decodedEventLibs, eventLib)
 	}
 	return decodedEventLibs, nil
+}
+
+func mergeEvents(evtLibEvents []segment.Event, tpEvents []segment.Event) []segment.Event {
+	var mergedEvents []segment.Event = evtLibEvents
+	for _, ruleEvnt := range tpEvents {
+		exists := false
+		for i, mergedEvnt := range mergedEvents {
+			if ruleEvnt.Name == mergedEvnt.Name {
+				mergedEvents[i] = ruleEvnt
+				exists = true
+				break
+			}
+		}
+		if !exists {
+			mergedEvents = append(mergedEvents, ruleEvnt)
+		}
+	}
+	return mergedEvents
 }
