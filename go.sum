@@ -239,6 +239,8 @@ github.com/uswitch/segment-config-go v0.2.1-0.20210303180935-613aacb035fb h1:hFl
 github.com/uswitch/segment-config-go v0.2.1-0.20210303180935-613aacb035fb/go.mod h1:uzzjVECHdRjfQehoup4JJ+cguIx6ldf4Qy3fmySNx2s=
 github.com/uswitch/segment-config-go v0.2.1-0.20210316161300-bd26d0212910 h1:vSHEFVSIL8y0NheswJSQcHyz+vAAhjrz6PO9UGRkkvw=
 github.com/uswitch/segment-config-go v0.2.1-0.20210316161300-bd26d0212910/go.mod h1:uzzjVECHdRjfQehoup4JJ+cguIx6ldf4Qy3fmySNx2s=
+github.com/uswitch/segment-config-go v0.2.1-0.20210413163555-4c43dce8fd00 h1:sURpv/sBuW3PhJbTdZizPPjFtGelIK90sBtc0P6DE24=
+github.com/uswitch/segment-config-go v0.2.1-0.20210413163555-4c43dce8fd00/go.mod h1:uzzjVECHdRjfQehoup4JJ+cguIx6ldf4Qy3fmySNx2s=
 github.com/vmihailenco/msgpack v3.3.3+incompatible/go.mod h1:fy3FlTQTDXWkZ7Bh6AcGMlsjHatGryHQYUTf1ShIgkk=
 github.com/vmihailenco/msgpack v4.0.4+incompatible h1:dSLoQfGFAo3F6OoNhwUmLwVgaUXK79GlxNBwueZn0xI=
 github.com/vmihailenco/msgpack v4.0.4+incompatible/go.mod h1:fy3FlTQTDXWkZ7Bh6AcGMlsjHatGryHQYUTf1ShIgkk=
