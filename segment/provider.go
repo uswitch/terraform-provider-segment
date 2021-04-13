@@ -39,7 +39,7 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 
 	if accessToken != "" && workSpace != "" {
 		c := segment.NewClient(accessToken, workSpace)
-		return c, diags
+		return SegmentMetadata{client: c, workspace: workSpace}, diags
 	}
 
 	diags = append(diags, diag.Diagnostic{
