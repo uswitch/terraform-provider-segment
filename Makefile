@@ -6,12 +6,12 @@ PROVIDER_PATH=uswitch.com/segment/segment/$(VERSION)/$(OS)_$(ARCH)
 EXE=./build/terraform-provider-segment_$(VERSION)_$(OS)_$(ARCH)
 
 .PHONY: build
-
 build:
 	GOOS=$(OS) GOARCH=$(ARCH) CGO_ENABLED=0 go build -o $(EXE)
 	mkdir -p ~/.terraform.d/plugins/$(PROVIDER_PATH)
 	cp $(EXE) ~/.terraform.d/plugins/$(PROVIDER_PATH)/terraform-provider-segment
 
+.PHONY: release
 release:
 	BUMPED=$$(bin/bump.sh $(VERSION) $(TYPE)); \
 	git tag $${BUMPED}; \
