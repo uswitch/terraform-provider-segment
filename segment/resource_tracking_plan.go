@@ -19,6 +19,9 @@ func resourceTrackingPlan() *schema.Resource {
 		ReadContext:   resourceTrackingPlanRead,
 		UpdateContext: resourceTrackingPlanUpdate,
 		DeleteContext: resourceTrackingPlanDelete,
+		Importer: &schema.ResourceImporter{
+			State: schema.ImportStatePassthrough,
+		},
 		SchemaVersion: 1,
 		Schema: map[string]*schema.Schema{
 			"name": {
@@ -30,9 +33,10 @@ func resourceTrackingPlan() *schema.Resource {
 				Required: true,
 			},
 			"rules_json_file": {
-				Type:         schema.TypeString,
-				Optional:     true,
-				ValidateFunc: validation.StringIsJSON,
+				Type:             schema.TypeString,
+				Optional:         true,
+				ValidateFunc:     validation.StringIsJSON,
+				DiffSuppressFunc: diffRulesJSONState,
 			},
 			"import_from": {
 				Type:     schema.TypeList,
@@ -54,6 +58,24 @@ func resourceTrackingPlan() *schema.Resource {
 			},
 		},
 	}
+}
+
+func removeRulesJSONWhitespace(input string) string {
+	var decodedStr segment.RuleSet
+	if err := json.Unmarshal([]byte(input), &decodedStr); err != nil {
+		panic(err)
+	}
+
+	encodedStr, err := json.Marshal(decodedStr)
+	if err != nil {
+		panic(err)
+	}
+	return string(encodedStr)
+}
+
+func diffRulesJSONState(k, old, new string, d *schema.ResourceData) bool {
+	encodedNew := removeRulesJSONWhitespace(new)
+	return old == encodedNew
 }
 
 func resourceTrackingPlanCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
@@ -153,7 +175,7 @@ func resourceTrackingPlanRead(ctx context.Context, d *schema.ResourceData, m int
 	tp.Rules.Events = sourceEvents
 
 	// Convert Rules to JSON
-	rulesJSON, err := json.MarshalIndent(tp.Rules, "", "  ")
+	rulesJSON, err := json.Marshal(tp.Rules)
 	if err != nil {
 		return diag.FromErr(err)
 	}
