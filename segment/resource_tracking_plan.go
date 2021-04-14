@@ -11,6 +11,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
+var client segment.Client
+
 func resourceTrackingPlan() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceTrackingPlanCreate,
@@ -77,7 +79,7 @@ func diffRulesJSONState(k, old, new string, d *schema.ResourceData) bool {
 }
 
 func resourceTrackingPlanCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	meta := m.(SegmentMetadata)
+	client := m.(*segment.Client)
 
 	// Read tracking plan rules
 	var tpRules segment.RuleSet
@@ -108,7 +110,7 @@ func resourceTrackingPlanCreate(ctx context.Context, d *schema.ResourceData, m i
 		DisplayName: d.Get("display_name").(string),
 		Rules:       tpRules,
 	}
-	response, err := meta.client.CreateTrackingPlan(tp)
+	response, err := client.CreateTrackingPlan(tp)
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -123,9 +125,9 @@ func resourceTrackingPlanCreate(ctx context.Context, d *schema.ResourceData, m i
 
 func resourceTrackingPlanRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
-	meta := m.(SegmentMetadata)
+	client := m.(*segment.Client)
 
-	tp, err := meta.client.GetTrackingPlan(d.Id())
+	tp, err := client.GetTrackingPlan(d.Id())
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -186,7 +188,7 @@ func resourceTrackingPlanRead(ctx context.Context, d *schema.ResourceData, m int
 
 func resourceTrackingPlanUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
-	meta := m.(SegmentMetadata)
+	client := m.(*segment.Client)
 
 	tpID := d.Id()
 	if d.HasChanges("display_name", "rules_json_file", "import_from") {
@@ -221,7 +223,7 @@ func resourceTrackingPlanUpdate(ctx context.Context, d *schema.ResourceData, m i
 			DisplayName: displayName,
 			Rules:       tpRules,
 		}
-		_, err := meta.client.UpdateTrackingPlan(tpID, tp)
+		_, err := client.UpdateTrackingPlan(tpID, tp)
 		if err != nil {
 			return diag.FromErr(err)
 		}
@@ -232,9 +234,9 @@ func resourceTrackingPlanUpdate(ctx context.Context, d *schema.ResourceData, m i
 }
 
 func resourceTrackingPlanDelete(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	meta := m.(SegmentMetadata)
+	client := m.(*segment.Client)
 
-	err := meta.client.DeleteTrackingPlan(d.Id())
+	err := client.DeleteTrackingPlan(d.Id())
 	if err != nil {
 		return diag.FromErr(err)
 	}
