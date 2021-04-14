@@ -36,6 +36,17 @@ func resourceTrackingPlan() *schema.Resource {
 				Type:         schema.TypeString,
 				Optional:     true,
 				ValidateFunc: validation.StringIsJSON,
+				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool {
+					var newRules segment.RuleSet
+					json.Unmarshal([]byte(new), &newRules)
+
+					newRes, err := json.Marshal(newRules)
+					if err != nil {
+						panic(err)
+					}
+
+					return old == string(newRes)
+				},
 			},
 			"import_from": {
 				Type:     schema.TypeList,
@@ -156,7 +167,7 @@ func resourceTrackingPlanRead(ctx context.Context, d *schema.ResourceData, m int
 	tp.Rules.Events = sourceEvents
 
 	// Convert Rules to JSON
-	rulesJSON, err := json.MarshalIndent(tp.Rules, "", "  ")
+	rulesJSON, err := json.Marshal(tp.Rules)
 	if err != nil {
 		return diag.FromErr(err)
 	}
