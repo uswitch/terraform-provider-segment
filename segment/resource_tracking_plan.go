@@ -19,6 +19,9 @@ func resourceTrackingPlan() *schema.Resource {
 		ReadContext:   resourceTrackingPlanRead,
 		UpdateContext: resourceTrackingPlanUpdate,
 		DeleteContext: resourceTrackingPlanDelete,
+		Importer: &schema.ResourceImporter{
+			State: schema.ImportStatePassthrough,
+		},
 		SchemaVersion: 1,
 		Schema: map[string]*schema.Schema{
 			"name": {
