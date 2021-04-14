@@ -33,20 +33,10 @@ func resourceTrackingPlan() *schema.Resource {
 				Required: true,
 			},
 			"rules_json_file": {
-				Type:         schema.TypeString,
-				Optional:     true,
-				ValidateFunc: validation.StringIsJSON,
-				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool {
-					var newRules segment.RuleSet
-					json.Unmarshal([]byte(new), &newRules)
-
-					newRes, err := json.Marshal(newRules)
-					if err != nil {
-						panic(err)
-					}
-
-					return old == string(newRes)
-				},
+				Type:             schema.TypeString,
+				Optional:         true,
+				ValidateFunc:     validation.StringIsJSON,
+				DiffSuppressFunc: diffRulesJSONState,
 			},
 			"import_from": {
 				Type:     schema.TypeList,
@@ -68,6 +58,24 @@ func resourceTrackingPlan() *schema.Resource {
 			},
 		},
 	}
+}
+
+func removeRulesJSONWhitespace(input string) string {
+	var decodedStr segment.RuleSet
+	if err := json.Unmarshal([]byte(input), &decodedStr); err != nil {
+		panic(err)
+	}
+
+	encodedStr, err := json.Marshal(decodedStr)
+	if err != nil {
+		panic(err)
+	}
+	return string(encodedStr)
+}
+
+func diffRulesJSONState(k, old, new string, d *schema.ResourceData) bool {
+	encodedNew := removeRulesJSONWhitespace(new)
+	return old == encodedNew
 }
 
 func resourceTrackingPlanCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
