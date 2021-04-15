@@ -2,22 +2,18 @@ package segment
 
 import (
 	"context"
-	"fmt"
 	"log"
-	"strings"
 
+	"github.com/fatih/structs"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/uswitch/segment-config-go/segment"
 )
 
-const (
-	configAllowUnplannedTrackEventsKey = "allow_unplanned_track_events"
-)
-
 var (
-	allowedTrackBehaviours            ValuesSet = map[string]bool{"ALLOW": true, "OMIT_PROPERTIES": true, "BLOCK": true}
-	allowedIdentifyAndGroupBehaviours ValuesSet = map[string]bool{"ALLOW": true, "OMIT_TRAITS": true, "BLOCK": true}
+	allowedTrackBehaviours            = []string{"ALLOW", "OMIT_PROPERTIES", "BLOCK"}
+	allowedIdentifyAndGroupBehaviours = []string{"ALLOW", "OMIT_TRAITS", "BLOCK"}
 )
 
 func resourceSegmentSource() *schema.Resource {
@@ -39,7 +35,7 @@ func resourceSegmentSource() *schema.Resource {
 				MaxItems: 1,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
-						configAllowUnplannedTrackEventsKey: {
+						"allow_unplanned_track_events": {
 							Type:     schema.TypeBool,
 							Required: true,
 						},
@@ -84,17 +80,25 @@ func resourceSegmentSource() *schema.Resource {
 						"common_track_event_on_violations": {
 							Type:         schema.TypeString,
 							Required:     true,
-							ValidateFunc: validateCommonEventBehaviour(allowedTrackBehaviours),
+							ValidateFunc: validation.StringInSlice(allowedTrackBehaviours, false),
 						},
 						"common_identify_event_on_violations": {
 							Type:         schema.TypeString,
 							Required:     true,
-							ValidateFunc: validateCommonEventBehaviour(allowedIdentifyAndGroupBehaviours),
+							ValidateFunc: validation.StringInSlice(allowedIdentifyAndGroupBehaviours, false),
 						},
 						"common_group_event_on_violations": {
 							Type:         schema.TypeString,
 							Required:     true,
-							ValidateFunc: validateCommonEventBehaviour(allowedIdentifyAndGroupBehaviours),
+							ValidateFunc: validation.StringInSlice(allowedIdentifyAndGroupBehaviours, false),
+						},
+						"name": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"parent": {
+							Type:     schema.TypeString,
+							Computed: true,
 						},
 					},
 				},
@@ -119,7 +123,24 @@ func resourceSegmentSourceRead(_ context.Context, r *schema.ResourceData, m inte
 		return diag.FromErr(err)
 	}
 
-	r.Set("catalog_name", s.CatalogName)
+	config, err := client.GetSourceConfig(id)
+	log.Printf("[DEBUG] Config: %+v \n", config)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+
+	err = r.Set("catalog_name", s.CatalogName)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+
+	log.Printf("[DEBUG] Setting config to: %+v \n")
+	structs.DefaultTagName = "json"
+	cfg := structs.Map(config)
+	err = r.Set("config", []map[string]interface{}{cfg})
+	if err != nil {
+		return diag.FromErr(err)
+	}
 
 	return nil
 }
@@ -166,44 +187,4 @@ func resourceSegmentSourceDelete(_ context.Context, r *schema.ResourceData, m in
 	}
 
 	return nil
-}
-
-type ValuesSet map[string]bool
-
-func (s ValuesSet) isAllowed(value string) bool {
-	_, ok := s[value]
-	return ok
-}
-
-func (s ValuesSet) values() []string {
-	values := make([]string, 0, len(s))
-	for k, _ := range s {
-		values = append(values, k)
-	}
-	return values
-}
-
-type InvalidPropertyValueError struct {
-	Property      string
-	Value         string
-	AllowedValues []string
-}
-
-func (err *InvalidPropertyValueError) Error() string {
-	return fmt.Sprintf("Invalid value %s for property %s. Allowed values are: %s", err.Value, err.Property, strings.Join(err.AllowedValues, ", "))
-}
-
-func validateCommonEventBehaviour(allowedList ValuesSet) func(val interface{}, key string) (warns []string, errs []error) {
-	return func(val interface{}, key string) (warns []string, errs []error) {
-		if value, ok := val.(string); ok && allowedList.isAllowed(value) {
-			return []string{}, []error{}
-		}
-		return []string{}, []error{
-			&InvalidPropertyValueError{
-				Property:      key,
-				Value:         fmt.Sprintf("%v", val),
-				AllowedValues: allowedList.values(),
-			},
-		}
-	}
 }
