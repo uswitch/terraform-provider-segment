@@ -31,7 +31,12 @@ func resourceSegmentSource() *schema.Resource {
 				Required: true,
 				ForceNew: true,
 			},
-			"config": {
+			"tracking_plan": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				RequiredWith: []string{"schema_config"},
+			},
+			"schema_config": {
 				Type:     schema.TypeList,
 				Optional: true,
 				MaxItems: 1,
