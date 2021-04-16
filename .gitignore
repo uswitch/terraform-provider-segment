@@ -11,3 +11,5 @@ terraform-provider-segment*
 crash.log
 *.txt
 .DS_Store
+
+example
