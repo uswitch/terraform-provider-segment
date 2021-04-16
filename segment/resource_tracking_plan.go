@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"regexp"
 
+	"github.com/ajbosco/segment-config-go/segment"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
-	"github.com/uswitch/segment-config-go/segment"
 )
 
 var client segment.Client
@@ -20,7 +20,7 @@ func resourceTrackingPlan() *schema.Resource {
 		UpdateContext: resourceTrackingPlanUpdate,
 		DeleteContext: resourceTrackingPlanDelete,
 		Importer: &schema.ResourceImporter{
-			State: schema.ImportStatePassthrough,
+			StateContext: schema.ImportStatePassthroughContext,
 		},
 		SchemaVersion: 1,
 		Schema: map[string]*schema.Schema{
