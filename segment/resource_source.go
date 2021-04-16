@@ -2,12 +2,14 @@ package segment
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/fatih/structs"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	"github.com/mitchellh/mapstructure"
 	"github.com/uswitch/segment-config-go/segment"
 )
 
@@ -108,9 +110,9 @@ func resourceSegmentSource() *schema.Resource {
 		ReadContext:   resourceSegmentSourceRead,
 		DeleteContext: resourceSegmentSourceDelete,
 		UpdateContext: resourceSegmentSourceUpdate,
-		// Importer: &schema.ResourceImporter{
-		// 	State: resourceSegmentSourceImport,
-		// },
+		Importer: &schema.ResourceImporter{
+			StateContext: schema.ImportStatePassthroughContext,
+		},
 	}
 }
 
@@ -124,7 +126,6 @@ func resourceSegmentSourceRead(_ context.Context, r *schema.ResourceData, m inte
 	}
 
 	config, err := client.GetSourceConfig(id)
-	log.Printf("[DEBUG] Config: %+v \n", config)
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -134,10 +135,12 @@ func resourceSegmentSourceRead(_ context.Context, r *schema.ResourceData, m inte
 		return diag.FromErr(err)
 	}
 
-	log.Printf("[DEBUG] Setting config to: %+v \n")
-	structs.DefaultTagName = "json"
-	cfg := structs.Map(config)
-	err = r.Set("config", []map[string]interface{}{cfg})
+	err = r.Set("source_name", id)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+
+	err = r.Set("config", encodeSourceConfig(config))
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -149,11 +152,28 @@ func resourceSegmentSourceCreate(ctx context.Context, r *schema.ResourceData, m 
 	client := m.(*segment.Client)
 	srcName := r.Get("source_name").(string)
 	catName := r.Get("catalog_name").(string)
+	configs := r.Get("config").([]interface{})
 
-	_, err := client.CreateSource(srcName, catName)
+	config, err := decodeSourceConfig(configs[0])
 	if err != nil {
-		log.Printf("[ERROR] Problem creating source %s \n", err)
+		return *err
+	}
+
+	if _, err := client.CreateSource(srcName, catName); err != nil {
 		return diag.FromErr(err)
+	}
+
+	log.Printf("[DEBUG] Setting config to: %+v \n", config)
+	if s, err := client.UpdateSourceConfig(srcName, *config); err != nil {
+		diags := diag.FromErr(err)
+		if err := client.DeleteSource(srcName); err != nil {
+			diags = append(diags, diag.Diagnostic{
+				Severity: diag.Warning,
+				Summary:  "Lingering Segment resources",
+				Detail:   fmt.Sprintf("Source %s could not be cleaned up because of %s. Check Segment for manual cleanup", s.Name, err),
+			})
+		}
+		return diags
 	}
 
 	r.SetId(srcName)
@@ -164,15 +184,21 @@ func resourceSegmentSourceCreate(ctx context.Context, r *schema.ResourceData, m 
 func resourceSegmentSourceUpdate(ctx context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
 	client := m.(*segment.Client)
 	srcName := r.Get("source_name").(string)
-	catName := r.Get("config").(string)
 
-	source, err := client.CreateSource(srcName, catName)
+	configs := r.Get("config").([]interface{})
+
+	config, d := decodeSourceConfig(configs[0])
+	if d != nil {
+		return *d
+	}
+
+	c, err := client.UpdateSourceConfig(srcName, *config)
+	log.Printf("[DEBUG] RESULT config: %+v \n", c)
 	if err != nil {
-		log.Printf("[ERROR] Problem creating source %s \n", err)
 		return diag.FromErr(err)
 	}
 
-	r.SetId(source.Name)
+	r.SetId(srcName)
 
 	return resourceSegmentSourceRead(ctx, r, m)
 }
@@ -187,4 +213,21 @@ func resourceSegmentSourceDelete(_ context.Context, r *schema.ResourceData, m in
 	}
 
 	return nil
+}
+
+func encodeSourceConfig(config segment.SourceConfig) []map[string]interface{} {
+	structs.DefaultTagName = "json"
+	return []map[string]interface{}{structs.Map(config)}
+}
+
+func decodeSourceConfig(configMap interface{}) (*segment.SourceConfig, *diag.Diagnostics) {
+	var config segment.SourceConfig
+	decoder, _ := mapstructure.NewDecoder(&mapstructure.DecoderConfig{Result: &config, TagName: "json"})
+
+	if err := decoder.Decode(configMap); err != nil {
+		diags := diag.FromErr(err)
+		return nil, &diags
+	}
+
+	return &config, nil
 }
