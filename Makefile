@@ -9,9 +9,7 @@ EXE=./build/terraform-provider-segment_$(VERSION)_$(OS)_$(ARCH)
 build:
 	GOOS=$(OS) GOARCH=$(ARCH) CGO_ENABLED=0 go build -o $(EXE)
 	mkdir -p ~/.terraform.d/plugins/$(PROVIDER_PATH)
-	cp $(EXE) ~/.terraform.d/plugins/$(PROVIDER_PATH)/terraform-provider-segment
-	rm -rf example/.terraform
-	rm example/.terraform.lock.hcl
+	cp $(EXE) ~/.terraform.d/plugins/$(PROVIDER_PATH)/terraform-provider-segment || :
 
 .PHONY: release
 release:
