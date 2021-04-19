@@ -3,19 +3,31 @@ package segment
 import (
 	"context"
 	"fmt"
-	"log"
 
-	"github.com/fatih/structs"
+	"github.com/ajbosco/segment-config-go/segment"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
-	"github.com/mitchellh/mapstructure"
-	"github.com/uswitch/segment-config-go/segment"
 )
 
 var (
 	allowedTrackBehaviours            = []string{"ALLOW", "OMIT_PROPERTIES", "BLOCK"}
 	allowedIdentifyAndGroupBehaviours = []string{"ALLOW", "OMIT_TRAITS", "BLOCK"}
+	defaultSourceConfig               = segment.SourceConfig{
+		AllowUnplannedTrackEvents:           true,
+		AllowUnplannedIdentifyTraits:        true,
+		AllowUnplannedGroupTraits:           true,
+		ForwardingBlockedEventsTo:           "",
+		AllowUnplannedTrackEventsProperties: true,
+		AllowTrackEventOnViolations:         true,
+		AllowIdentifyTraitsOnViolations:     true,
+		AllowGroupTraitsOnViolations:        true,
+		ForwardingViolationsTo:              "",
+		AllowTrackPropertiesOnViolations:    true,
+		CommonTrackEventOnViolations:        segment.Allow,
+		CommonIdentifyEventOnViolations:     segment.Allow,
+		CommonGroupEventOnViolations:        segment.Allow,
+	}
 )
 
 func resourceSegmentSource() *schema.Resource {
@@ -145,9 +157,11 @@ func resourceSegmentSourceRead(_ context.Context, r *schema.ResourceData, m inte
 		return diag.FromErr(err)
 	}
 
-	err = r.Set("config", encodeSourceConfig(config))
-	if err != nil {
-		return diag.FromErr(err)
+	if _, exists := r.GetOk("schema_config"); exists {
+		err = r.Set("schema_config", encodeSourceConfig(config))
+		if err != nil {
+			return diag.FromErr(err)
+		}
 	}
 
 	return nil
@@ -157,28 +171,35 @@ func resourceSegmentSourceCreate(ctx context.Context, r *schema.ResourceData, m 
 	client := m.(*segment.Client)
 	srcName := r.Get("source_name").(string)
 	catName := r.Get("catalog_name").(string)
-	configs := r.Get("config").([]interface{})
+	configs := r.Get("schema_config").([]interface{})
+	var config *segment.SourceConfig
 
-	config, err := decodeSourceConfig(configs[0])
-	if err != nil {
-		return *err
+	if len(configs) > 0 {
+		var err *diag.Diagnostics
+		config, err = decodeSourceConfig(configs[0])
+		if err != nil {
+			return *err
+		}
 	}
 
 	if _, err := client.CreateSource(srcName, catName); err != nil {
 		return diag.FromErr(err)
 	}
 
-	log.Printf("[DEBUG] Setting config to: %+v \n", config)
-	if s, err := client.UpdateSourceConfig(srcName, *config); err != nil {
-		diags := diag.FromErr(err)
-		if err := client.DeleteSource(srcName); err != nil {
-			diags = append(diags, diag.Diagnostic{
-				Severity: diag.Warning,
-				Summary:  "Lingering Segment resources",
-				Detail:   fmt.Sprintf("Source %s could not be cleaned up because of %s. Check Segment for manual cleanup", s.Name, err),
-			})
+	// ignoring when config is not set
+	if config != nil {
+		if s, err := client.UpdateSourceConfig(srcName, *config); err != nil {
+			// Reverting resource creation on failure
+			diags := diag.FromErr(err)
+			if err := client.DeleteSource(srcName); err != nil {
+				diags = append(diags, diag.Diagnostic{
+					Severity: diag.Warning,
+					Summary:  "Lingering Segment resources",
+					Detail:   fmt.Sprintf("Source %s could not be cleaned up because of %s. Check Segment for manual cleanup", s.Name, err),
+				})
+			}
+			return diags
 		}
-		return diags
 	}
 
 	r.SetId(srcName)
@@ -190,17 +211,25 @@ func resourceSegmentSourceUpdate(ctx context.Context, r *schema.ResourceData, m 
 	client := m.(*segment.Client)
 	srcName := r.Get("source_name").(string)
 
-	configs := r.Get("config").([]interface{})
+	if r.HasChange("schema_config") {
 
-	config, d := decodeSourceConfig(configs[0])
-	if d != nil {
-		return *d
-	}
+		configs := r.Get("schema_config").([]interface{})
+		var config segment.SourceConfig
 
-	c, err := client.UpdateSourceConfig(srcName, *config)
-	log.Printf("[DEBUG] RESULT config: %+v \n", c)
-	if err != nil {
-		return diag.FromErr(err)
+		if len(configs) > 0 {
+			c, d := decodeSourceConfig(configs[0])
+			if d != nil {
+				return *d
+			}
+			config = *c
+		} else {
+			config = defaultSourceConfig
+		}
+
+		_, err := client.UpdateSourceConfig(srcName, config)
+		if err != nil {
+			return diag.FromErr(err)
+		}
 	}
 
 	r.SetId(srcName)
@@ -221,18 +250,49 @@ func resourceSegmentSourceDelete(_ context.Context, r *schema.ResourceData, m in
 }
 
 func encodeSourceConfig(config segment.SourceConfig) []map[string]interface{} {
-	structs.DefaultTagName = "json"
-	return []map[string]interface{}{structs.Map(config)}
+	return []map[string]interface{}{{
+		"allow_unplanned_track_events":           config.AllowUnplannedTrackEvents,
+		"allow_unplanned_identify_traits":        config.AllowUnplannedIdentifyTraits,
+		"allow_unplanned_group_traits":           config.AllowUnplannedGroupTraits,
+		"forwarding_blocked_events_to":           config.ForwardingBlockedEventsTo,
+		"allow_unplanned_track_event_properties": config.AllowUnplannedTrackEventsProperties,
+		"allow_track_event_on_violations":        config.AllowTrackEventOnViolations,
+		"allow_identify_traits_on_violations":    config.AllowIdentifyTraitsOnViolations,
+		"allow_group_traits_on_violations":       config.AllowGroupTraitsOnViolations,
+		"forwarding_violations_to":               config.ForwardingViolationsTo,
+		"allow_track_properties_on_violations":   config.AllowTrackPropertiesOnViolations,
+		"common_track_event_on_violations":       config.CommonTrackEventOnViolations,
+		"common_identify_event_on_violations":    config.CommonIdentifyEventOnViolations,
+		"common_group_event_on_violations":       config.CommonGroupEventOnViolations,
+		"name":                                   config.Name,
+		"parent":                                 config.Parent,
+	}}
 }
 
-func decodeSourceConfig(configMap interface{}) (*segment.SourceConfig, *diag.Diagnostics) {
-	var config segment.SourceConfig
-	decoder, _ := mapstructure.NewDecoder(&mapstructure.DecoderConfig{Result: &config, TagName: "json"})
+func decodeSourceConfig(rawConfigMap interface{}) (config *segment.SourceConfig, diags *diag.Diagnostics) {
+	defer func() {
+		if r := recover(); r != nil {
+			err := diag.FromErr(fmt.Errorf("failed to decode schema config into a valid SourceConfig: %w", r.(error)))
+			diags = &err
+		}
+	}()
 
-	if err := decoder.Decode(configMap); err != nil {
-		diags := diag.FromErr(err)
-		return nil, &diags
+	configMap := rawConfigMap.(map[string]interface{})
+	config = &segment.SourceConfig{
+		AllowUnplannedTrackEvents:           configMap["allow_unplanned_track_events"].(bool),
+		AllowUnplannedIdentifyTraits:        configMap["allow_unplanned_identify_traits"].(bool),
+		AllowUnplannedGroupTraits:           configMap["allow_unplanned_group_traits"].(bool),
+		ForwardingBlockedEventsTo:           configMap["forwarding_blocked_events_to"].(string),
+		AllowUnplannedTrackEventsProperties: configMap["allow_unplanned_track_event_properties"].(bool),
+		AllowTrackEventOnViolations:         configMap["allow_track_event_on_violations"].(bool),
+		AllowIdentifyTraitsOnViolations:     configMap["allow_identify_traits_on_violations"].(bool),
+		AllowGroupTraitsOnViolations:        configMap["allow_group_traits_on_violations"].(bool),
+		ForwardingViolationsTo:              configMap["forwarding_violations_to"].(string),
+		AllowTrackPropertiesOnViolations:    configMap["allow_track_properties_on_violations"].(bool),
+		CommonTrackEventOnViolations:        segment.CommonEventSettings(configMap["common_track_event_on_violations"].(string)),
+		CommonIdentifyEventOnViolations:     segment.CommonEventSettings(configMap["common_identify_event_on_violations"].(string)),
+		CommonGroupEventOnViolations:        segment.CommonEventSettings(configMap["common_group_event_on_violations"].(string)),
 	}
 
-	return &config, nil
+	return
 }

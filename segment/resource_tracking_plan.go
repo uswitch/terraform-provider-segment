@@ -11,8 +11,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
-var client segment.Client
-
 func resourceTrackingPlan() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceTrackingPlanCreate,
