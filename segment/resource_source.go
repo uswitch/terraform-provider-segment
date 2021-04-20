@@ -171,10 +171,12 @@ func resourceSegmentSourceCreate(ctx context.Context, r *schema.ResourceData, m 
 
 	if len(configs) > 0 {
 		var err *diag.Diagnostics
-		config, err = decodeSourceConfig(configs[0])
-		if err != nil {
+
+		var c segment.SourceConfig
+		if err = decodeSourceConfig(configs[0], &c); err != nil {
 			return *err
 		}
+		config = &c
 	}
 
 	if _, err := client.CreateSource(srcName, catName); err != nil {
@@ -212,11 +214,9 @@ func resourceSegmentSourceUpdate(ctx context.Context, r *schema.ResourceData, m 
 		var config segment.SourceConfig
 
 		if len(configs) > 0 {
-			c, d := decodeSourceConfig(configs[0])
-			if d != nil {
+			if d := decodeSourceConfig(configs[0], &config); d != nil {
 				return *d
 			}
-			config = *c
 		} else {
 			config = defaultSourceConfig
 		}
@@ -264,7 +264,7 @@ func encodeSourceConfig(config segment.SourceConfig) []map[string]interface{} {
 	}}
 }
 
-func decodeSourceConfig(rawConfigMap interface{}) (config *segment.SourceConfig, diags *diag.Diagnostics) {
+func decodeSourceConfig(rawConfigMap interface{}, dst *segment.SourceConfig) (diags *diag.Diagnostics) {
 	defer func() {
 		if r := recover(); r != nil {
 			err := diag.FromErr(fmt.Errorf("failed to decode schema config into a valid SourceConfig: %w", r.(error)))
@@ -273,7 +273,7 @@ func decodeSourceConfig(rawConfigMap interface{}) (config *segment.SourceConfig,
 	}()
 
 	configMap := rawConfigMap.(map[string]interface{})
-	config = &segment.SourceConfig{
+	*dst = segment.SourceConfig{
 		AllowUnplannedTrackEvents:           configMap["allow_unplanned_track_events"].(bool),
 		AllowUnplannedIdentifyTraits:        configMap["allow_unplanned_identify_traits"].(bool),
 		AllowUnplannedGroupTraits:           configMap["allow_unplanned_group_traits"].(bool),
