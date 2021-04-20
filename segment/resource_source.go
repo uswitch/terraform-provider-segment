@@ -3,6 +3,8 @@ package segment
 import (
 	"context"
 	"fmt"
+	"log"
+	"strings"
 
 	"github.com/ajbosco/segment-config-go/segment"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -44,14 +46,14 @@ func resourceSegmentSource() *schema.Resource {
 				ForceNew: true,
 			},
 			"tracking_plan": {
-				Type:         schema.TypeString,
-				Optional:     true,
-				RequiredWith: []string{"schema_config"},
+				Type:     schema.TypeString,
+				Optional: true,
 			},
 			"schema_config": {
-				Type:     schema.TypeList,
-				Optional: true,
-				MaxItems: 1,
+				Type:         schema.TypeList,
+				Optional:     true,
+				MaxItems:     1,
+				RequiredWith: []string{"tracking_plan"},
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"allow_unplanned_track_events": {
@@ -139,27 +141,35 @@ func resourceSegmentSourceRead(_ context.Context, r *schema.ResourceData, m inte
 
 	s, err := client.GetSource(id)
 	if err != nil {
+		log.Printf("ERROR GETTING SOURCE %s\n", id)
+		return diag.FromErr(err)
+	}
+	log.Printf("FETCHED SOURCE %s: %+v\n", id, s)
+
+	if err = r.Set("catalog_name", s.CatalogName); err != nil {
 		return diag.FromErr(err)
 	}
 
-	config, err := client.GetSourceConfig(id)
-	if err != nil {
+	if err = r.Set("source_name", id); err != nil {
 		return diag.FromErr(err)
 	}
 
-	err = r.Set("catalog_name", s.CatalogName)
-	if err != nil {
-		return diag.FromErr(err)
-	}
+	log.Printf("READING CHANGE %+v\n", r.State().Attributes)
+	if tpID := r.Get("tracking_plan"); tpID != "" {
+		log.Printf("SETTING TP LINK TO %s for %s\n", tpID, id)
+		if d := findSourceConnection(tpID.(string), id, *client); d != nil {
+			log.Printf("ERROR GETTING TP LINK %s for %s\n", tpID, id)
+			r.Set("tracking_plan", nil)
+		} else if err = r.Set("tracking_plan", tpID); err != nil {
+			return diag.FromErr(err)
+		}
 
-	err = r.Set("source_name", id)
-	if err != nil {
-		return diag.FromErr(err)
-	}
-
-	if _, exists := r.GetOk("schema_config"); exists {
-		err = r.Set("schema_config", encodeSourceConfig(config))
+		config, err := client.GetSourceConfig(id)
 		if err != nil {
+			log.Printf("ERROR GETTING SOURCE CONFIG %s\n", id)
+			return diag.FromErr(err)
+		}
+		if r.Set("schema_config", encodeSourceConfig(config)); err != nil {
 			return diag.FromErr(err)
 		}
 	}
@@ -232,6 +242,21 @@ func resourceSegmentSourceUpdate(ctx context.Context, r *schema.ResourceData, m 
 		}
 	}
 
+	if old, new := r.GetChange("tracking_plan"); old != new {
+		log.Printf("REMOVING OLD PLAN %s\n", old)
+		if err := client.DeleteTrackingPlanSourceConnection(old.(string), srcName); err != nil {
+			return diag.FromErr(err)
+		}
+
+		if new != "" {
+			log.Printf("SWITCHING PLAN %s to %s\n", old, new)
+			if err := client.CreateTrackingPlanSourceConnection(new.(string), srcName); err != nil {
+				return diag.FromErr(err)
+			}
+
+		}
+	}
+
 	r.SetId(srcName)
 
 	return resourceSegmentSourceRead(ctx, r, m)
@@ -295,4 +320,30 @@ func decodeSourceConfig(rawConfigMap interface{}) (config *segment.SourceConfig,
 	}
 
 	return
+}
+
+func pathToName(path string) string {
+	parts := strings.Split(path, "/")
+	if len(parts) > 0 {
+		return parts[len(parts)-1]
+	}
+
+	return path
+}
+
+func findSourceConnection(trackingPlan string, src string, client segment.Client) *diag.Diagnostics {
+	sources, err := client.ListTrackingPlanSources(trackingPlan)
+	if err != nil {
+		d := diag.FromErr(fmt.Errorf("invalid tracking plan ID %s: %w", trackingPlan, err))
+		return &d
+	}
+
+	for _, s := range sources {
+		if pathToName(s.Source) == src {
+			return nil
+		}
+	}
+
+	d := diag.Errorf("Trackingplan not found: %s", trackingPlan)
+	return &d
 }
