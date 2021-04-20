@@ -141,10 +141,8 @@ func resourceSegmentSourceRead(_ context.Context, r *schema.ResourceData, m inte
 
 	s, err := client.GetSource(id)
 	if err != nil {
-		log.Printf("ERROR GETTING SOURCE %s\n", id)
 		return diag.FromErr(err)
 	}
-	log.Printf("FETCHED SOURCE %s: %+v\n", id, s)
 
 	if err = r.Set("catalog_name", s.CatalogName); err != nil {
 		return diag.FromErr(err)
@@ -154,22 +152,21 @@ func resourceSegmentSourceRead(_ context.Context, r *schema.ResourceData, m inte
 		return diag.FromErr(err)
 	}
 
-	log.Printf("READING CHANGE %+v\n", r.State().Attributes)
-	if tpID := r.Get("tracking_plan"); tpID != "" {
-		log.Printf("SETTING TP LINK TO %s for %s\n", tpID, id)
-		if d := findSourceConnection(tpID.(string), id, *client); d != nil {
-			log.Printf("ERROR GETTING TP LINK %s for %s\n", tpID, id)
-			r.Set("tracking_plan", nil)
-		} else if err = r.Set("tracking_plan", tpID); err != nil {
+	tpID, d := initTrackingPlan(r.Get("tracking_plan").(string), id, *client)
+	if d != nil {
+		return *d
+	}
+
+	if tpID != "" {
+		if err = r.Set("tracking_plan", tpID); err != nil {
 			return diag.FromErr(err)
 		}
 
 		config, err := client.GetSourceConfig(id)
 		if err != nil {
-			log.Printf("ERROR GETTING SOURCE CONFIG %s\n", id)
 			return diag.FromErr(err)
 		}
-		if r.Set("schema_config", encodeSourceConfig(config)); err != nil {
+		if err = r.Set("schema_config", encodeSourceConfig(config)); err != nil {
 			return diag.FromErr(err)
 		}
 	}
@@ -221,8 +218,22 @@ func resourceSegmentSourceUpdate(ctx context.Context, r *schema.ResourceData, m 
 	client := m.(*segment.Client)
 	srcName := r.Get("source_name").(string)
 
-	if r.HasChange("schema_config") {
+	if old, new := r.GetChange("tracking_plan"); old != new {
+		log.Println("CHANGING TP " + old.(string) + " to " + new.(string))
+		if old != "" {
+			if err := client.DeleteTrackingPlanSourceConnection(old.(string), srcName); err != nil {
+				return diag.FromErr(err)
+			}
+		}
 
+		if new != "" {
+			if err := client.CreateTrackingPlanSourceConnection(new.(string), srcName); err != nil {
+				return diag.FromErr(err)
+			}
+		}
+	}
+
+	if r.HasChange("schema_config") {
 		configs := r.Get("schema_config").([]interface{})
 		var config segment.SourceConfig
 
@@ -242,21 +253,6 @@ func resourceSegmentSourceUpdate(ctx context.Context, r *schema.ResourceData, m 
 		}
 	}
 
-	if old, new := r.GetChange("tracking_plan"); old != new {
-		log.Printf("REMOVING OLD PLAN %s\n", old)
-		if err := client.DeleteTrackingPlanSourceConnection(old.(string), srcName); err != nil {
-			return diag.FromErr(err)
-		}
-
-		if new != "" {
-			log.Printf("SWITCHING PLAN %s to %s\n", old, new)
-			if err := client.CreateTrackingPlanSourceConnection(new.(string), srcName); err != nil {
-				return diag.FromErr(err)
-			}
-
-		}
-	}
-
 	r.SetId(srcName)
 
 	return resourceSegmentSourceRead(ctx, r, m)
@@ -273,6 +269,8 @@ func resourceSegmentSourceDelete(_ context.Context, r *schema.ResourceData, m in
 
 	return nil
 }
+
+// Decoders
 
 func encodeSourceConfig(config segment.SourceConfig) []map[string]interface{} {
 	return []map[string]interface{}{{
@@ -322,6 +320,8 @@ func decodeSourceConfig(rawConfigMap interface{}) (config *segment.SourceConfig,
 	return
 }
 
+// Converts a segment resource path to its id
+// E.g: workspaces/myworkspace/sources/mysource => mysource
 func pathToName(path string) string {
 	parts := strings.Split(path, "/")
 	if len(parts) > 0 {
@@ -331,7 +331,8 @@ func pathToName(path string) string {
 	return path
 }
 
-func findSourceConnection(trackingPlan string, src string, client segment.Client) *diag.Diagnostics {
+// assertTrackingPlanConnected verifies a tracking plan and a source are connected and fails otherwise
+func assertTrackingPlanConnected(trackingPlan string, src string, client segment.Client) *diag.Diagnostics {
 	sources, err := client.ListTrackingPlanSources(trackingPlan)
 	if err != nil {
 		d := diag.FromErr(fmt.Errorf("invalid tracking plan ID %s: %w", trackingPlan, err))
@@ -344,6 +345,44 @@ func findSourceConnection(trackingPlan string, src string, client segment.Client
 		}
 	}
 
-	d := diag.Errorf("Trackingplan not found: %s", trackingPlan)
+	d := diag.Errorf("Tracking plan not found: %s", trackingPlan)
 	return &d
+}
+
+func initTrackingPlan(tpID string, source string, client segment.Client) (string, *diag.Diagnostics) {
+	if tpID != "" {
+		if d := assertTrackingPlanConnected(tpID, source, client); d != nil {
+			return searchTrackingPlanSourceConnection(source, client)
+		}
+
+		return tpID, nil
+	} else {
+		return searchTrackingPlanSourceConnection(source, client)
+	}
+}
+
+// searchTrackingPlanSourceConnection browses all tracking plan to find the given source and returns the connect tracking plan, or "" if the source is unconnected
+func searchTrackingPlanSourceConnection(source string, client segment.Client) (string, *diag.Diagnostics) {
+	tps, err := client.ListTrackingPlans()
+	if err != nil {
+		d := diag.FromErr(err)
+		return "", &d
+	}
+
+	for _, tp := range tps.TrackingPlans {
+		tpID := pathToName(tp.Name)
+		srcs, err := client.ListTrackingPlanSources(tpID)
+		if err != nil {
+			d := diag.FromErr(err)
+			return "", &d
+		}
+
+		for _, currSrc := range srcs {
+			if pathToName(currSrc.Source) == source {
+				return tpID, nil
+			}
+		}
+	}
+
+	return "", nil
 }
