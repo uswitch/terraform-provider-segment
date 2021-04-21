@@ -3,6 +3,7 @@ package segment
 import (
 	"context"
 	"fmt"
+	"log"
 	"reflect"
 	"strings"
 
@@ -28,7 +29,7 @@ var (
 		AllowUnplannedGroupTraits:           true,
 		ForwardingBlockedEventsTo:           "",
 		AllowUnplannedTrackEventsProperties: true,
-		AllowTrackEventOnViolations:         true,
+		AllowTrackEventOnViolations:         false,
 		AllowIdentifyTraitsOnViolations:     true,
 		AllowGroupTraitsOnViolations:        true,
 		ForwardingViolationsTo:              "",
@@ -57,20 +58,11 @@ func resourceSegmentSource() *schema.Resource {
 				Optional: true,
 			},
 			keySchemaConfig: {
-				Type:         schema.TypeList,
-				Optional:     true,
-				MaxItems:     1,
-				RequiredWith: []string{keyTrackingPlan},
-				DiffSuppressFunc: func(_, _, _ string, d *schema.ResourceData) bool {
-					var config segment.SourceConfig
-					if err := decodeSourceConfig(d.Get(keySchemaConfig).([]interface{})[0], &config); err != nil {
-						return false
-					}
-
-					noChange := !d.HasChange(keySchemaConfig)
-					isUsingDefaultConfig := reflect.DeepEqual(config, defaultSourceConfig)
-					return noChange && isUsingDefaultConfig
-				},
+				Type:             schema.TypeList,
+				Optional:         true,
+				MaxItems:         1,
+				RequiredWith:     []string{keyTrackingPlan},
+				DiffSuppressFunc: suppressSchemaConfigDiff,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"allow_unplanned_track_events": {
@@ -174,7 +166,8 @@ func resourceSegmentSourceRead(_ context.Context, r *schema.ResourceData, m inte
 		return *d
 	}
 
-	if tpID != "" {
+	hasTrackingPlanSet := tpID != ""
+	if hasTrackingPlanSet {
 		if err = r.Set(keyTrackingPlan, tpID); err != nil {
 			return diag.FromErr(err)
 		}
@@ -195,37 +188,28 @@ func resourceSegmentSourceCreate(ctx context.Context, r *schema.ResourceData, m 
 	client := m.(*segment.Client)
 	srcName := r.Get(keySource).(string)
 	catName := r.Get(keyCatalog).(string)
-	configs := r.Get(keySchemaConfig).([]interface{})
-	var config *segment.SourceConfig
-
-	if len(configs) > 0 {
-		var err *diag.Diagnostics
-
-		var c segment.SourceConfig
-		if err = decodeSourceConfig(configs[0], &c); err != nil {
-			return *err
-		}
-		config = &c
-	}
 
 	if _, err := client.CreateSource(srcName, catName); err != nil {
 		return diag.FromErr(err)
 	}
 
-	// ignoring when config is not set
-	if config != nil {
-		if s, err := client.UpdateSourceConfig(srcName, *config); err != nil {
-			// Reverting resource creation on failure
-			diags := diag.FromErr(err)
-			if err := client.DeleteSource(srcName); err != nil {
-				diags = append(diags, diag.Diagnostic{
-					Severity: diag.Warning,
-					Summary:  "Lingering Segment resources",
-					Detail:   fmt.Sprintf("Source %s could not be cleaned up because of %s. Check Segment for manual cleanup", s.Name, err),
-				})
-			}
-			return diags
+	revertCreation := func(d diag.Diagnostics) diag.Diagnostics {
+		if err := client.DeleteSource(srcName); err != nil {
+			d = append(d, diag.Diagnostic{
+				Severity: diag.Warning,
+				Summary:  "Lingering Segment resources",
+				Detail:   fmt.Sprintf("Source %s could not be cleaned up because of %s. Check Segment for manual cleanup", srcName, err),
+			})
 		}
+		return d
+	}
+
+	if d := updateTrackingPlan(r, *client); d != nil {
+		return revertCreation(*d)
+	}
+
+	if d := updateSchemaConfig(r, *client); d != nil {
+		return revertCreation(*d)
 	}
 
 	r.SetId(srcName)
@@ -233,66 +217,16 @@ func resourceSegmentSourceCreate(ctx context.Context, r *schema.ResourceData, m 
 	return resourceSegmentSourceRead(ctx, r, m)
 }
 
-func updateTrackingPlan(srcName string, r *schema.ResourceData, client segment.Client) *diag.Diagnostics {
-	if old, new := r.GetChange(keyTrackingPlan); old != new {
-		if old != "" {
-			if err := client.DeleteTrackingPlanSourceConnection(old.(string), srcName); err != nil {
-				return diagFromErrPtr(err)
-			}
-		}
-
-		if new != "" {
-			if err := client.CreateTrackingPlanSourceConnection(new.(string), srcName); err != nil {
-				return diagFromErrPtr(err)
-			}
-		}
-	}
-	return nil
-}
-
 func resourceSegmentSourceUpdate(ctx context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
 	client := m.(*segment.Client)
 	srcName := r.Get(keySource).(string)
-	tpID := r.Get(keyTrackingPlan).(string)
 
-	if old, new := r.GetChange(keyTrackingPlan); old != new {
-		if old != "" {
-			if err := client.DeleteTrackingPlanSourceConnection(old.(string), srcName); err != nil {
-				return diag.FromErr(err)
-			}
-		}
-
-		if new != "" {
-			if err := client.CreateTrackingPlanSourceConnection(new.(string), srcName); err != nil {
-				return diag.FromErr(err)
-			}
-		}
+	if d := updateTrackingPlan(r, *client); d != nil {
+		return *d
 	}
 
-	if r.HasChange(keySchemaConfig) {
-		configs := r.Get(keySchemaConfig).([]interface{})
-		hasConfigSet := len(configs) > 0
-		hasTrackingPlan := tpID != ""
-
-		if hasTrackingPlan {
-			var config segment.SourceConfig
-
-			if hasConfigSet {
-				if d := decodeSourceConfig(configs[0], &config); d != nil {
-					return *d
-				}
-			} else {
-				config = defaultSourceConfig
-			}
-
-			_, err := client.UpdateSourceConfig(srcName, config)
-			if err != nil {
-				return diag.FromErr(err)
-			}
-		} else {
-			// We wipe the previous config out of the state as there's no more tracking plan attached
-			r.Set(keySchemaConfig, nil)
-		}
+	if d := updateSchemaConfig(r, *client); d != nil {
+		return *d
 	}
 
 	r.SetId(srcName)
@@ -361,15 +295,69 @@ func decodeSourceConfig(rawConfigMap interface{}, dst *segment.SourceConfig) (di
 	return
 }
 
-// Converts a segment resource path to its id
-// E.g: workspaces/myworkspace/sources/mysource => mysource
-func pathToName(path string) string {
-	parts := strings.Split(path, "/")
-	if len(parts) > 0 {
-		return parts[len(parts)-1]
+// Schema config
+
+func getSchemaConfigOrDefault(r *schema.ResourceData, dst *segment.SourceConfig) *diag.Diagnostics {
+	configs := r.Get(keySchemaConfig).([]interface{})
+	hasConfigSet := len(configs) > 0
+
+	if hasConfigSet {
+		if d := decodeSourceConfig(configs[0], dst); d != nil {
+			return d
+		}
+	} else {
+		*dst = defaultSourceConfig
 	}
 
-	return path
+	return nil
+}
+
+func updateSchemaConfig(r *schema.ResourceData, client segment.Client) *diag.Diagnostics {
+	if !r.HasChange(keySchemaConfig) {
+		return nil
+	}
+
+	srcName := r.Get(keySource).(string)
+	tpID := r.Get(keyTrackingPlan).(string)
+	hasTrackingPlanSet := tpID != ""
+
+	if hasTrackingPlanSet {
+		var config segment.SourceConfig
+		if d := getSchemaConfigOrDefault(r, &config); d != nil {
+			return d
+		}
+
+		_, err := client.UpdateSourceConfig(srcName, config)
+		if err != nil {
+			return diagFromErrPtr(err)
+		}
+	} else {
+		// We wipe the previous config out of the state as there's no more tracking plan attached
+		r.Set(keySchemaConfig, nil)
+	}
+
+	return nil
+}
+
+// Tracking Plans
+
+func updateTrackingPlan(r *schema.ResourceData, client segment.Client) *diag.Diagnostics {
+	srcName := r.Get(keySource).(string)
+
+	if old, new := r.GetChange(keyTrackingPlan); old != new {
+		if old != "" {
+			if err := client.DeleteTrackingPlanSourceConnection(old.(string), srcName); err != nil {
+				return diagFromErrPtr(err)
+			}
+		}
+
+		if new != "" {
+			if err := client.CreateTrackingPlanSourceConnection(new.(string), srcName); err != nil {
+				return diagFromErrPtr(err)
+			}
+		}
+	}
+	return nil
 }
 
 func initTrackingPlan(tpID string, source string, client segment.Client) (string, *diag.Diagnostics) {
@@ -429,9 +417,33 @@ func findTrackingPlanSourceConnection(source string, client segment.Client) (str
 	return "", nil
 }
 
-// Helpers
+// Misc Helpers
 
 func diagFromErrPtr(err error) *diag.Diagnostics {
 	d := diag.FromErr(err)
 	return &d
+}
+
+// Converts a segment resource path to its id
+// E.g: workspaces/myworkspace/sources/mysource => mysource
+func pathToName(path string) string {
+	parts := strings.Split(path, "/")
+	if len(parts) > 0 {
+		return parts[len(parts)-1]
+	}
+
+	return path
+}
+
+// suppressSchemaConfigDiff hides changes to schema config when it is not specified explicitely but using the default one
+func suppressSchemaConfigDiff(k, old, new string, d *schema.ResourceData) bool {
+	var config segment.SourceConfig
+	if err := decodeSourceConfig(d.Get(keySchemaConfig).([]interface{})[0], &config); err != nil {
+		log.Printf("[WARNING]: Problem when suppressing diff for %s: %s => %s: %v", k, old, new, err)
+		return false
+	}
+
+	noChange := !d.HasChange(keySchemaConfig)
+	isUsingDefaultConfig := reflect.DeepEqual(config, defaultSourceConfig)
+	return noChange && isUsingDefaultConfig
 }
