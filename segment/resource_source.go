@@ -60,11 +60,15 @@ func resourceSegmentSource() *schema.Resource {
 				Type:         schema.TypeList,
 				Optional:     true,
 				MaxItems:     1,
-				RequiredWith: []string{"tracking_plan"},
+				RequiredWith: []string{keyTrackingPlan},
 				DiffSuppressFunc: func(_, _, _ string, d *schema.ResourceData) bool {
-					config, _ := decodeSourceConfig(d.Get("schema_config").([]interface{})[0])
-					noChange := !d.HasChange("schema_config")
-					isUsingDefaultConfig := reflect.DeepEqual(*config, defaultSourceConfig)
+					var config segment.SourceConfig
+					if err := decodeSourceConfig(d.Get(keySchemaConfig).([]interface{})[0], &config); err != nil {
+						return false
+					}
+
+					noChange := !d.HasChange(keySchemaConfig)
+					isUsingDefaultConfig := reflect.DeepEqual(config, defaultSourceConfig)
 					return noChange && isUsingDefaultConfig
 				},
 				Elem: &schema.Resource{
@@ -196,10 +200,12 @@ func resourceSegmentSourceCreate(ctx context.Context, r *schema.ResourceData, m 
 
 	if len(configs) > 0 {
 		var err *diag.Diagnostics
-		config, err = decodeSourceConfig(configs[0])
-		if err != nil {
+
+		var c segment.SourceConfig
+		if err = decodeSourceConfig(configs[0], &c); err != nil {
 			return *err
 		}
+		config = &c
 	}
 
 	if _, err := client.CreateSource(srcName, catName); err != nil {
@@ -227,12 +233,29 @@ func resourceSegmentSourceCreate(ctx context.Context, r *schema.ResourceData, m 
 	return resourceSegmentSourceRead(ctx, r, m)
 }
 
+func updateTrackingPlan(srcName string, r *schema.ResourceData, client segment.Client) *diag.Diagnostics {
+	if old, new := r.GetChange(keyTrackingPlan); old != new {
+		if old != "" {
+			if err := client.DeleteTrackingPlanSourceConnection(old.(string), srcName); err != nil {
+				return diagFromErrPtr(err)
+			}
+		}
+
+		if new != "" {
+			if err := client.CreateTrackingPlanSourceConnection(new.(string), srcName); err != nil {
+				return diagFromErrPtr(err)
+			}
+		}
+	}
+	return nil
+}
+
 func resourceSegmentSourceUpdate(ctx context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
 	client := m.(*segment.Client)
 	srcName := r.Get(keySource).(string)
 	tpID := r.Get(keyTrackingPlan).(string)
 
-	if old, new := r.GetChange("tracking_plan"); old != new {
+	if old, new := r.GetChange(keyTrackingPlan); old != new {
 		if old != "" {
 			if err := client.DeleteTrackingPlanSourceConnection(old.(string), srcName); err != nil {
 				return diag.FromErr(err)
@@ -248,24 +271,26 @@ func resourceSegmentSourceUpdate(ctx context.Context, r *schema.ResourceData, m 
 
 	if r.HasChange(keySchemaConfig) {
 		configs := r.Get(keySchemaConfig).([]interface{})
-		var config segment.SourceConfig
+		hasConfigSet := len(configs) > 0
+		hasTrackingPlan := tpID != ""
 
-		if len(configs) > 0 {
-			c, d := decodeSourceConfig(configs[0])
-			if d != nil {
-				return *d
+		if hasTrackingPlan {
+			var config segment.SourceConfig
+
+			if hasConfigSet {
+				if d := decodeSourceConfig(configs[0], &config); d != nil {
+					return *d
+				}
+			} else {
+				config = defaultSourceConfig
 			}
-			config = *c
-		} else {
-			config = defaultSourceConfig
-		}
 
-		if tpID != "" {
 			_, err := client.UpdateSourceConfig(srcName, config)
 			if err != nil {
 				return diag.FromErr(err)
 			}
 		} else {
+			// We wipe the previous config out of the state as there's no more tracking plan attached
 			r.Set(keySchemaConfig, nil)
 		}
 	}
@@ -309,16 +334,15 @@ func encodeSourceConfig(config segment.SourceConfig) []map[string]interface{} {
 	}}
 }
 
-func decodeSourceConfig(rawConfigMap interface{}) (config *segment.SourceConfig, diags *diag.Diagnostics) {
+func decodeSourceConfig(rawConfigMap interface{}, dst *segment.SourceConfig) (diags *diag.Diagnostics) {
 	defer func() {
 		if r := recover(); r != nil {
-			err := diag.FromErr(fmt.Errorf("failed to decode schema config into a valid SourceConfig: %w", r.(error)))
-			diags = &err
+			diags = diagFromErrPtr(fmt.Errorf("failed to decode schema config into a valid SourceConfig: %w", r.(error)))
 		}
 	}()
 
 	configMap := rawConfigMap.(map[string]interface{})
-	config = &segment.SourceConfig{
+	*dst = segment.SourceConfig{
 		AllowUnplannedTrackEvents:           configMap["allow_unplanned_track_events"].(bool),
 		AllowUnplannedIdentifyTraits:        configMap["allow_unplanned_identify_traits"].(bool),
 		AllowUnplannedGroupTraits:           configMap["allow_unplanned_group_traits"].(bool),
@@ -366,8 +390,7 @@ func initTrackingPlan(tpID string, source string, client segment.Client) (string
 func assertTrackingPlanConnected(trackingPlan string, src string, client segment.Client) *diag.Diagnostics {
 	sources, err := client.ListTrackingPlanSources(trackingPlan)
 	if err != nil {
-		d := diag.FromErr(fmt.Errorf("invalid tracking plan ID %s: %w", trackingPlan, err))
-		return &d
+		return diagFromErrPtr(fmt.Errorf("invalid tracking plan ID %s: %w", trackingPlan, err))
 	}
 
 	for _, s := range sources {
@@ -386,16 +409,14 @@ func findTrackingPlanSourceConnection(source string, client segment.Client) (str
 	// Ideally we'll have the tracking plan attached to the source or fetchable through a unique endpoint in the future
 	tps, err := client.ListTrackingPlans()
 	if err != nil {
-		d := diag.FromErr(err)
-		return "", &d
+		return "", diagFromErrPtr(err)
 	}
 
 	for _, tp := range tps.TrackingPlans {
 		tpID := pathToName(tp.Name)
 		srcs, err := client.ListTrackingPlanSources(tpID)
 		if err != nil {
-			d := diag.FromErr(err)
-			return "", &d
+			return "", diagFromErrPtr(err)
 		}
 
 		for _, currSrc := range srcs {
@@ -406,4 +427,11 @@ func findTrackingPlanSourceConnection(source string, client segment.Client) (str
 	}
 
 	return "", nil
+}
+
+// Helpers
+
+func diagFromErrPtr(err error) *diag.Diagnostics {
+	d := diag.FromErr(err)
+	return &d
 }
