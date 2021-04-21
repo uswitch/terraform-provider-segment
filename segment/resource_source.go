@@ -3,13 +3,20 @@ package segment
 import (
 	"context"
 	"fmt"
-	"log"
+	"reflect"
 	"strings"
 
 	"github.com/ajbosco/segment-config-go/segment"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+)
+
+const (
+	keySource       = "source_name"
+	keyCatalog      = "catalog_name"
+	keyTrackingPlan = "tracking_plan"
+	keySchemaConfig = "schema_config"
 )
 
 var (
@@ -35,25 +42,31 @@ var (
 func resourceSegmentSource() *schema.Resource {
 	return &schema.Resource{
 		Schema: map[string]*schema.Schema{
-			"source_name": {
+			keySource: {
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
 			},
-			"catalog_name": {
+			keyCatalog: {
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
 			},
-			"tracking_plan": {
+			keyTrackingPlan: {
 				Type:     schema.TypeString,
 				Optional: true,
 			},
-			"schema_config": {
+			keySchemaConfig: {
 				Type:         schema.TypeList,
 				Optional:     true,
 				MaxItems:     1,
 				RequiredWith: []string{"tracking_plan"},
+				DiffSuppressFunc: func(_, _, _ string, d *schema.ResourceData) bool {
+					config, _ := decodeSourceConfig(d.Get("schema_config").([]interface{})[0])
+					noChange := !d.HasChange("schema_config")
+					isUsingDefaultConfig := reflect.DeepEqual(*config, defaultSourceConfig)
+					return noChange && isUsingDefaultConfig
+				},
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"allow_unplanned_track_events": {
@@ -144,21 +157,21 @@ func resourceSegmentSourceRead(_ context.Context, r *schema.ResourceData, m inte
 		return diag.FromErr(err)
 	}
 
-	if err = r.Set("catalog_name", s.CatalogName); err != nil {
+	if err = r.Set(keyCatalog, s.CatalogName); err != nil {
 		return diag.FromErr(err)
 	}
 
-	if err = r.Set("source_name", id); err != nil {
+	if err = r.Set(keySource, id); err != nil {
 		return diag.FromErr(err)
 	}
 
-	tpID, d := initTrackingPlan(r.Get("tracking_plan").(string), id, *client)
+	tpID, d := initTrackingPlan(r.Get(keyTrackingPlan).(string), id, *client)
 	if d != nil {
 		return *d
 	}
 
 	if tpID != "" {
-		if err = r.Set("tracking_plan", tpID); err != nil {
+		if err = r.Set(keyTrackingPlan, tpID); err != nil {
 			return diag.FromErr(err)
 		}
 
@@ -166,7 +179,7 @@ func resourceSegmentSourceRead(_ context.Context, r *schema.ResourceData, m inte
 		if err != nil {
 			return diag.FromErr(err)
 		}
-		if err = r.Set("schema_config", encodeSourceConfig(config)); err != nil {
+		if err = r.Set(keySchemaConfig, encodeSourceConfig(config)); err != nil {
 			return diag.FromErr(err)
 		}
 	}
@@ -176,9 +189,9 @@ func resourceSegmentSourceRead(_ context.Context, r *schema.ResourceData, m inte
 
 func resourceSegmentSourceCreate(ctx context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
 	client := m.(*segment.Client)
-	srcName := r.Get("source_name").(string)
-	catName := r.Get("catalog_name").(string)
-	configs := r.Get("schema_config").([]interface{})
+	srcName := r.Get(keySource).(string)
+	catName := r.Get(keyCatalog).(string)
+	configs := r.Get(keySchemaConfig).([]interface{})
 	var config *segment.SourceConfig
 
 	if len(configs) > 0 {
@@ -216,10 +229,10 @@ func resourceSegmentSourceCreate(ctx context.Context, r *schema.ResourceData, m 
 
 func resourceSegmentSourceUpdate(ctx context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
 	client := m.(*segment.Client)
-	srcName := r.Get("source_name").(string)
+	srcName := r.Get(keySource).(string)
+	tpID := r.Get(keyTrackingPlan).(string)
 
 	if old, new := r.GetChange("tracking_plan"); old != new {
-		log.Println("CHANGING TP " + old.(string) + " to " + new.(string))
 		if old != "" {
 			if err := client.DeleteTrackingPlanSourceConnection(old.(string), srcName); err != nil {
 				return diag.FromErr(err)
@@ -233,8 +246,8 @@ func resourceSegmentSourceUpdate(ctx context.Context, r *schema.ResourceData, m 
 		}
 	}
 
-	if r.HasChange("schema_config") {
-		configs := r.Get("schema_config").([]interface{})
+	if r.HasChange(keySchemaConfig) {
+		configs := r.Get(keySchemaConfig).([]interface{})
 		var config segment.SourceConfig
 
 		if len(configs) > 0 {
@@ -247,9 +260,13 @@ func resourceSegmentSourceUpdate(ctx context.Context, r *schema.ResourceData, m 
 			config = defaultSourceConfig
 		}
 
-		_, err := client.UpdateSourceConfig(srcName, config)
-		if err != nil {
-			return diag.FromErr(err)
+		if tpID != "" {
+			_, err := client.UpdateSourceConfig(srcName, config)
+			if err != nil {
+				return diag.FromErr(err)
+			}
+		} else {
+			r.Set(keySchemaConfig, nil)
 		}
 	}
 
@@ -331,6 +348,20 @@ func pathToName(path string) string {
 	return path
 }
 
+func initTrackingPlan(tpID string, source string, client segment.Client) (string, *diag.Diagnostics) {
+	if tpID != "" {
+		// We first try to match the tracking plan specified in the config to avoid expensive calls
+		if d := assertTrackingPlanConnected(tpID, source, client); d != nil {
+			return findTrackingPlanSourceConnection(source, client)
+		}
+
+		return tpID, nil
+	} else {
+		// When the tracking plan is not specified, we search for it, so we can import existing sources
+		return findTrackingPlanSourceConnection(source, client)
+	}
+}
+
 // assertTrackingPlanConnected verifies a tracking plan and a source are connected and fails otherwise
 func assertTrackingPlanConnected(trackingPlan string, src string, client segment.Client) *diag.Diagnostics {
 	sources, err := client.ListTrackingPlanSources(trackingPlan)
@@ -349,20 +380,10 @@ func assertTrackingPlanConnected(trackingPlan string, src string, client segment
 	return &d
 }
 
-func initTrackingPlan(tpID string, source string, client segment.Client) (string, *diag.Diagnostics) {
-	if tpID != "" {
-		if d := assertTrackingPlanConnected(tpID, source, client); d != nil {
-			return searchTrackingPlanSourceConnection(source, client)
-		}
-
-		return tpID, nil
-	} else {
-		return searchTrackingPlanSourceConnection(source, client)
-	}
-}
-
-// searchTrackingPlanSourceConnection browses all tracking plan to find the given source and returns the connect tracking plan, or "" if the source is unconnected
-func searchTrackingPlanSourceConnection(source string, client segment.Client) (string, *diag.Diagnostics) {
+// findTrackingPlanSourceConnection finds the connected tracking plan, or "" if the source is not connected
+func findTrackingPlanSourceConnection(source string, client segment.Client) (string, *diag.Diagnostics) {
+	// We have to browse all tracking plans to find the source.
+	// Ideally we'll have the tracking plan attached to the source or fetchable through a unique endpoint in the future
 	tps, err := client.ListTrackingPlans()
 	if err != nil {
 		d := diag.FromErr(err)
