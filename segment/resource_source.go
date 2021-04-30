@@ -162,13 +162,13 @@ func resourceSegmentSourceRead(_ context.Context, r *schema.ResourceData, m inte
 		return diag.FromErr(err)
 	}
 
-	time.Sleep(500)
+	time.Sleep(500 * time.Millisecond)
 	tpID, d := initTrackingPlan(r.Get(keyTrackingPlan).(string), id, *client)
 	if d != nil {
 		return *d
 	}
 
-	time.Sleep(500)
+	time.Sleep(500 * time.Millisecond)
 	hasTrackingPlanSet := tpID != ""
 	if hasTrackingPlanSet {
 		if err = r.Set(keyTrackingPlan, tpID); err != nil {
@@ -415,7 +415,7 @@ func findTrackingPlanSourceConnection(source string, client segment.Client) (str
 				return tpID, nil
 			}
 		}
-		time.Sleep(500)
+		time.Sleep(500 * time.Millisecond)
 	}
 
 	return "", nil
