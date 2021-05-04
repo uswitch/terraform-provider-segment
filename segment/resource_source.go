@@ -414,6 +414,7 @@ func findTrackingPlanSourceConnection(source string, client segment.Client) (str
 				return tpID, nil
 			}
 		}
+		// Segment API rate-limits at 60 calls/sec, so we delay the next call to avoid getting a 429
 		time.Sleep(configApiDelay)
 	}
 
