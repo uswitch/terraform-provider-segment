@@ -6,6 +6,7 @@ import (
 	"log"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/ajbosco/segment-config-go/segment"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -18,6 +19,7 @@ const (
 	keyCatalog      = "catalog_name"
 	keyTrackingPlan = "tracking_plan"
 	keySchemaConfig = "schema_config"
+	configApiDelay  = 75 * time.Millisecond
 )
 
 var (
@@ -412,6 +414,7 @@ func findTrackingPlanSourceConnection(source string, client segment.Client) (str
 				return tpID, nil
 			}
 		}
+		time.Sleep(configApiDelay)
 	}
 
 	return "", nil
