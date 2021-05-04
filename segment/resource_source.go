@@ -413,7 +413,7 @@ func findTrackingPlanSourceConnection(source string, client segment.Client) (str
 				return tpID, nil
 			}
 		}
-		time.Sleep(75 * time.Millisecond)
+		time.Sleep(50 * time.Millisecond)
 	}
 
 	return "", nil
