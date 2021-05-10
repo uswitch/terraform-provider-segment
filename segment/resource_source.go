@@ -2,6 +2,7 @@ package segment
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -45,6 +46,133 @@ var (
 	cache TrackingPlansConnectionsCache = map[string]string{}
 )
 
+var schemaConfigSchema = schema.Resource{
+	Schema: map[string]*schema.Schema{
+		"allow_unplanned_track_events": {
+			Type:     schema.TypeBool,
+			Required: true,
+		},
+		"allow_unplanned_identify_traits": {
+			Type:     schema.TypeBool,
+			Required: true,
+		},
+		"allow_unplanned_group_traits": {
+			Type:     schema.TypeBool,
+			Required: true,
+		},
+		"forwarding_blocked_events_to": {
+			Type:     schema.TypeString,
+			Optional: true,
+			Default:  "",
+		},
+		"allow_unplanned_track_event_properties": {
+			Type:     schema.TypeBool,
+			Required: true,
+		},
+		"allow_track_event_on_violations": {
+			Type:     schema.TypeBool,
+			Required: true,
+		},
+		"allow_identify_traits_on_violations": {
+			Type:     schema.TypeBool,
+			Required: true,
+		},
+		"allow_group_traits_on_violations": {
+			Type:     schema.TypeBool,
+			Required: true,
+		},
+		"forwarding_violations_to": {
+			Type:     schema.TypeString,
+			Optional: true,
+			Default:  "",
+		},
+		"allow_track_properties_on_violations": {
+			Type:     schema.TypeBool,
+			Required: true,
+		},
+		"common_track_event_on_violations": {
+			Type:         schema.TypeString,
+			Required:     true,
+			ValidateFunc: validation.StringInSlice(allowedTrackBehaviours, false),
+		},
+		"common_identify_event_on_violations": {
+			Type:         schema.TypeString,
+			Required:     true,
+			ValidateFunc: validation.StringInSlice(allowedIdentifyAndGroupBehaviours, false),
+		},
+		"common_group_event_on_violations": {
+			Type:         schema.TypeString,
+			Required:     true,
+			ValidateFunc: validation.StringInSlice(allowedIdentifyAndGroupBehaviours, false),
+		},
+		"name": {
+			Type:     schema.TypeString,
+			Computed: true,
+		},
+		"parent": {
+			Type:     schema.TypeString,
+			Computed: true,
+		},
+	},
+}
+
+var destinationSchema = schema.Resource{
+	Schema: map[string]*schema.Schema{
+		"name": {
+			Type:     schema.TypeString,
+			ForceNew: true,
+			Required: true,
+		},
+		"enabled": {
+			Type:     schema.TypeBool,
+			Required: true,
+		},
+		"parent": {
+			Type:     schema.TypeString,
+			Required: true,
+			Computed: true,
+		},
+		"display_name": {
+			Type:     schema.TypeString,
+			Computed: true,
+			Required: true,
+		},
+		"connection_mode": {
+			Type:         schema.TypeString,
+			Computed:     true,
+			Optional:     true,
+			ValidateFunc: validation.StringInSlice([]string{"UNSPECIFIED", "CLOUD"}, false),
+		},
+		"config": {
+			Type:     schema.TypeList,
+			Required: true,
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"name": {
+						Type:     schema.TypeString,
+						ForceNew: true,
+						Required: true,
+					},
+					"type": {
+						Type:         schema.TypeString,
+						Required:     true,
+						ExactlyOneOf: []string{"string", "boolean", "number", "map", "select"},
+					},
+					"value_json": {
+						Type:     schema.TypeString,
+						Required: true,
+					},
+					"display_name": {
+						Type:     schema.TypeString,
+						Computed: true,
+						Required: true,
+					},
+				},
+			},
+		},
+	},
+}
+
 func resourceSegmentSource() *schema.Resource {
 	return &schema.Resource{
 		Schema: map[string]*schema.Schema{
@@ -68,75 +196,7 @@ func resourceSegmentSource() *schema.Resource {
 				MaxItems:         1,
 				RequiredWith:     []string{keyTrackingPlan},
 				DiffSuppressFunc: suppressSchemaConfigDiff,
-				Elem: &schema.Resource{
-					Schema: map[string]*schema.Schema{
-						"allow_unplanned_track_events": {
-							Type:     schema.TypeBool,
-							Required: true,
-						},
-						"allow_unplanned_identify_traits": {
-							Type:     schema.TypeBool,
-							Required: true,
-						},
-						"allow_unplanned_group_traits": {
-							Type:     schema.TypeBool,
-							Required: true,
-						},
-						"forwarding_blocked_events_to": {
-							Type:     schema.TypeString,
-							Optional: true,
-							Default:  "",
-						},
-						"allow_unplanned_track_event_properties": {
-							Type:     schema.TypeBool,
-							Required: true,
-						},
-						"allow_track_event_on_violations": {
-							Type:     schema.TypeBool,
-							Required: true,
-						},
-						"allow_identify_traits_on_violations": {
-							Type:     schema.TypeBool,
-							Required: true,
-						},
-						"allow_group_traits_on_violations": {
-							Type:     schema.TypeBool,
-							Required: true,
-						},
-						"forwarding_violations_to": {
-							Type:     schema.TypeString,
-							Optional: true,
-							Default:  "",
-						},
-						"allow_track_properties_on_violations": {
-							Type:     schema.TypeBool,
-							Required: true,
-						},
-						"common_track_event_on_violations": {
-							Type:         schema.TypeString,
-							Required:     true,
-							ValidateFunc: validation.StringInSlice(allowedTrackBehaviours, false),
-						},
-						"common_identify_event_on_violations": {
-							Type:         schema.TypeString,
-							Required:     true,
-							ValidateFunc: validation.StringInSlice(allowedIdentifyAndGroupBehaviours, false),
-						},
-						"common_group_event_on_violations": {
-							Type:         schema.TypeString,
-							Required:     true,
-							ValidateFunc: validation.StringInSlice(allowedIdentifyAndGroupBehaviours, false),
-						},
-						"name": {
-							Type:     schema.TypeString,
-							Computed: true,
-						},
-						"parent": {
-							Type:     schema.TypeString,
-							Computed: true,
-						},
-					},
-				},
+				Elem:             &schemaConfigSchema,
 			},
 		},
 		CreateContext: resourceSegmentSourceCreate,
@@ -189,7 +249,19 @@ func resourceSegmentSourceRead(_ context.Context, r *schema.ResourceData, m inte
 		}
 	}
 
+	dests, err := client.ListDestinations(id)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+
+	var destinations []map[string]interface{}
+	if err := encodeDestinations(dests.Destinations, destinations); err != nil {
+		return *err
+	}
+	r.Set("destinations", destinations)
+
 	log.Printf("[INFO] Done reading source %s", id)
+
 	return nil
 }
 
@@ -302,6 +374,52 @@ func decodeSourceConfig(rawConfigMap interface{}, dst *segment.SourceConfig) (di
 	}
 
 	return
+}
+
+func encodeDestinations(destinations []segment.Destination, encoded []map[string]interface{}) *diag.Diagnostics {
+	for _, destination := range destinations {
+		d := map[string]interface{}{
+			"name":            pathToName(destination.Name),
+			"display_name":    destination.DisplayName,
+			"enabled":         destination.Enabled,
+			"connection_mode": destination.ConnectionMode,
+			"parent":          destination.Parent,
+			"create_time":     destination.CreateTime,
+			"update_time":     destination.UpdateTime,
+		}
+
+		configs := []map[string]interface{}{}
+		for _, config := range destination.Configs {
+			var value string
+			if err := marshalConfigValue(config, &value); err != nil {
+				return err
+			}
+			c := map[string]interface{}{
+				"name":         pathToName(config.Name),
+				"display_name": config.DisplayName,
+				"type":         config.Type,
+				"value":        "",
+			}
+
+			configs = append(configs, c)
+		}
+
+		d["configs"] = configs
+
+		encoded = append(encoded, d)
+	}
+
+	return nil
+}
+
+func marshalConfigValue(config segment.DestinationConfig, dest *string) *diag.Diagnostics {
+	m, err := json.Marshal(config.Value)
+	if err != nil {
+		return diagFromErrPtr(err)
+	}
+
+	*dest = string(m)
+	return nil
 }
 
 // Schema config
