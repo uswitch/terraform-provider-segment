@@ -4,4 +4,4 @@ go 1.15
 
 require github.com/hashicorp/terraform-plugin-sdk/v2 v2.5.0
 
-require github.com/ajbosco/segment-config-go v0.2.1-0.20210427182513-0f1828c8701b
+require github.com/agouil/segment-config-go v0.2.1-0.20210512092950-ee02dbf100f3
