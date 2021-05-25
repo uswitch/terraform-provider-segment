@@ -399,6 +399,8 @@ func assertTrackingPlanConnected(trackingPlan string, src string, client segment
 type TrackingPlansConnectionsCache map[string]string
 
 func (cache TrackingPlansConnectionsCache) find(source string) string {
+	log.Printf("[INFO] looking for %s in cache", pathToName(source))
+	log.Printf("[INFO] %v", cache)
 	if tp := cache[pathToName(source)]; tp != "" {
 		log.Printf("[INFO] Tracking plan cache hit for %s <-> %s", source, tp)
 		return tp
@@ -419,7 +421,7 @@ func (cache TrackingPlansConnectionsCache) add(connections []segment.TrackingPla
 	}
 
 	log.Printf("[INFO] Cache has %d entries", len(cache))
-	log.Printf("[INFO] C%v", cache)
+	log.Printf("[INFO] %v", cache)
 }
 
 // findTrackingPlanSourceConnection finds the connected tracking plan, or "" if the source is not connected
