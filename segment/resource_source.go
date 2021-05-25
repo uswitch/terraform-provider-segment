@@ -42,6 +42,7 @@ var (
 		CommonIdentifyEventOnViolations:     segment.Allow,
 		CommonGroupEventOnViolations:        segment.Allow,
 	}
+	tpCache = map[string]string{}
 )
 
 func resourceSegmentSource() *schema.Resource {
@@ -368,13 +369,13 @@ func initTrackingPlan(tpID string, source string, client segment.Client) (string
 	if tpID != "" {
 		// We first try to match the tracking plan specified in the config to avoid expensive calls
 		if d := assertTrackingPlanConnected(tpID, source, client); d != nil {
-			return findTrackingPlanSourceConnection(source, client)
+			return findTrackingPlanSourceConnection(source, client, (*TrackingPlansConnectionsCache)(&tpCache))
 		}
 
 		return tpID, nil
 	} else {
 		// When the tracking plan is not specified, we search for it, so we can import existing sources
-		return findTrackingPlanSourceConnection(source, client)
+		return findTrackingPlanSourceConnection(source, client, (*TrackingPlansConnectionsCache)(&tpCache))
 	}
 }
 
@@ -395,8 +396,29 @@ func assertTrackingPlanConnected(trackingPlan string, src string, client segment
 	return &d
 }
 
+type TrackingPlansConnectionsCache map[string]string
+
+func (cache TrackingPlansConnectionsCache) find(source string) string {
+	if tp := cache[pathToName(source)]; tp != "" {
+		return tp
+	}
+
+	return ""
+}
+
+func (cache TrackingPlansConnectionsCache) add(connections []segment.TrackingPlanSourceConnection) {
+	for _, currSrc := range connections {
+		source := pathToName(currSrc.Source)
+		cache[source] = currSrc.TrackingPlanId
+	}
+}
+
 // findTrackingPlanSourceConnection finds the connected tracking plan, or "" if the source is not connected
-func findTrackingPlanSourceConnection(source string, client segment.Client) (string, *diag.Diagnostics) {
+func findTrackingPlanSourceConnection(source string, client segment.Client, cache *TrackingPlansConnectionsCache) (string, *diag.Diagnostics) {
+	if tp := cache.find(source); tp != "" {
+		return tp, nil
+	}
+
 	// We have to browse all tracking plans to find the source.
 	// Ideally we'll have the tracking plan attached to the source or fetchable through a unique endpoint in the future
 	rawTps, err := withBackoff(func() (interface{}, error) { return client.ListTrackingPlans() }, configApiInitialDelay, configApiMaxRetries)
@@ -412,11 +434,10 @@ func findTrackingPlanSourceConnection(source string, client segment.Client) (str
 			return "", diagFromErrPtr(err)
 		}
 		srcs := rawSrcs.([]segment.TrackingPlanSourceConnection)
+		cache.add(srcs)
 
-		for _, currSrc := range srcs {
-			if pathToName(currSrc.Source) == source {
-				return tpID, nil
-			}
+		if tp := cache.find(source); tp != "" {
+			return tp, nil
 		}
 	}
 
