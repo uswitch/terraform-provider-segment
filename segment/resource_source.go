@@ -42,8 +42,8 @@ var (
 		CommonIdentifyEventOnViolations:     segment.Allow,
 		CommonGroupEventOnViolations:        segment.Allow,
 	}
+	cache TrackingPlansConnectionsCache = map[string]string{}
 )
-var cache TrackingPlansConnectionsCache = map[string]string{}
 
 func resourceSegmentSource() *schema.Resource {
 	return &schema.Resource{
@@ -398,52 +398,6 @@ func assertTrackingPlanConnected(trackingPlan string, src string, client segment
 	return &d
 }
 
-type TrackingPlansConnectionsCache map[string]string
-
-func (cache TrackingPlansConnectionsCache) find(source string) string {
-	log.Printf("[INFO] looking for %s in cache", pathToName(source))
-	if tp := cache[pathToName(source)]; tp != "" {
-		log.Printf("[INFO] Tracking plan cache hit for %s <-> %s", source, tp)
-		return tp
-	}
-
-	return ""
-}
-
-func (cache TrackingPlansConnectionsCache) add(connections []segment.TrackingPlanSourceConnection) {
-	if len(connections) < 1 {
-		return
-	}
-
-	log.Printf("[INFO] Caching %d connections for %s", len(connections), connections[0].TrackingPlanId)
-	for _, currSrc := range connections {
-		source := pathToName(currSrc.Source)
-		cache[source] = currSrc.TrackingPlanId
-	}
-
-	log.Printf("[INFO] Cache has %d entries", len(cache))
-}
-
-func (cache TrackingPlansConnectionsCache) init(client segment.Client) error {
-	rawTps, err := withBackoff(func() (interface{}, error) { return client.ListTrackingPlans() }, configApiInitialDelay, configApiMaxRetries)
-	if err != nil {
-		return err
-	}
-	tps := rawTps.(segment.TrackingPlans)
-
-	for _, tp := range tps.TrackingPlans {
-		tpID := pathToName(tp.Name)
-		rawSrcs, err := withBackoff(func() (interface{}, error) { return client.ListTrackingPlanSources(tpID) }, configApiInitialDelay, configApiMaxRetries)
-		if err != nil {
-			return err
-		}
-		srcs := rawSrcs.([]segment.TrackingPlanSourceConnection)
-		cache.add(srcs)
-	}
-
-	return nil
-}
-
 // findTrackingPlanSourceConnection finds the connected tracking plan, or "" if the source is not connected
 func findTrackingPlanSourceConnection(source string, client segment.Client) (string, *diag.Diagnostics) {
 	if len(cache) > 0 {
@@ -500,4 +454,52 @@ func withBackoff(call func() (interface{}, error), initialRetryDelay time.Durati
 	}
 
 	return results, err
+}
+
+// Tracking plans connections cache
+
+type TrackingPlansConnectionsCache map[string]string
+
+func (cache TrackingPlansConnectionsCache) find(source string) string {
+	log.Printf("[INFO] looking for %s in cache", pathToName(source))
+	if tp := cache[pathToName(source)]; tp != "" {
+		log.Printf("[INFO] Tracking plan cache hit for %s <-> %s", source, tp)
+		return tp
+	}
+
+	return ""
+}
+
+func (cache TrackingPlansConnectionsCache) add(connections []segment.TrackingPlanSourceConnection) {
+	if len(connections) < 1 {
+		return
+	}
+
+	log.Printf("[INFO] Caching %d connections for %s", len(connections), connections[0].TrackingPlanId)
+	for _, currSrc := range connections {
+		source := pathToName(currSrc.Source)
+		cache[source] = currSrc.TrackingPlanId
+	}
+
+	log.Printf("[INFO] Cache has %d entries", len(cache))
+}
+
+func (cache TrackingPlansConnectionsCache) init(client segment.Client) error {
+	rawTps, err := withBackoff(func() (interface{}, error) { return client.ListTrackingPlans() }, configApiInitialDelay, configApiMaxRetries)
+	if err != nil {
+		return err
+	}
+	tps := rawTps.(segment.TrackingPlans)
+
+	for _, tp := range tps.TrackingPlans {
+		tpID := pathToName(tp.Name)
+		rawSrcs, err := withBackoff(func() (interface{}, error) { return client.ListTrackingPlanSources(tpID) }, configApiInitialDelay, configApiMaxRetries)
+		if err != nil {
+			return err
+		}
+		srcs := rawSrcs.([]segment.TrackingPlanSourceConnection)
+		cache.add(srcs)
+	}
+
+	return nil
 }
