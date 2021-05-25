@@ -21,6 +21,7 @@ const (
 	keyTrackingPlan       = "tracking_plan"
 	keySchemaConfig       = "schema_config"
 	configApiInitialDelay = 75 * time.Millisecond
+	configApiMaxRetries   = 30
 )
 
 var (
@@ -398,7 +399,7 @@ func assertTrackingPlanConnected(trackingPlan string, src string, client segment
 func findTrackingPlanSourceConnection(source string, client segment.Client) (string, *diag.Diagnostics) {
 	// We have to browse all tracking plans to find the source.
 	// Ideally we'll have the tracking plan attached to the source or fetchable through a unique endpoint in the future
-	rawTps, err := withBackoff(func() (interface{}, error) { return client.ListTrackingPlans() }, configApiInitialDelay, 10)
+	rawTps, err := withBackoff(func() (interface{}, error) { return client.ListTrackingPlans() }, configApiInitialDelay, configApiMaxRetries)
 	if err != nil {
 		return "", diagFromErrPtr(err)
 	}
@@ -406,7 +407,7 @@ func findTrackingPlanSourceConnection(source string, client segment.Client) (str
 
 	for _, tp := range tps.TrackingPlans {
 		tpID := pathToName(tp.Name)
-		rawSrcs, err := withBackoff(func() (interface{}, error) { return client.ListTrackingPlanSources(tpID) }, configApiInitialDelay, 10)
+		rawSrcs, err := withBackoff(func() (interface{}, error) { return client.ListTrackingPlanSources(tpID) }, configApiInitialDelay, configApiMaxRetries)
 		if err != nil {
 			return "", diagFromErrPtr(err)
 		}
