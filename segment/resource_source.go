@@ -4,22 +4,23 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"reflect"
 	"strings"
 	"time"
 
-	"github.com/agouil/segment-config-go/segment"
+	"github.com/ajbosco/segment-config-go/segment"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
 const (
-	keySource       = "source_name"
-	keyCatalog      = "catalog_name"
-	keyTrackingPlan = "tracking_plan"
-	keySchemaConfig = "schema_config"
-	configApiDelay  = 75 * time.Millisecond
+	keySource             = "source_name"
+	keyCatalog            = "catalog_name"
+	keyTrackingPlan       = "tracking_plan"
+	keySchemaConfig       = "schema_config"
+	configApiInitialDelay = 75 * time.Millisecond
 )
 
 var (
@@ -397,25 +398,25 @@ func assertTrackingPlanConnected(trackingPlan string, src string, client segment
 func findTrackingPlanSourceConnection(source string, client segment.Client) (string, *diag.Diagnostics) {
 	// We have to browse all tracking plans to find the source.
 	// Ideally we'll have the tracking plan attached to the source or fetchable through a unique endpoint in the future
-	tps, err := client.ListTrackingPlans()
+	rawTps, err := withBackoff(func() (interface{}, error) { return client.ListTrackingPlans() }, configApiInitialDelay, 10)
 	if err != nil {
 		return "", diagFromErrPtr(err)
 	}
+	tps := rawTps.(segment.TrackingPlans)
 
 	for _, tp := range tps.TrackingPlans {
 		tpID := pathToName(tp.Name)
-		srcs, err := client.ListTrackingPlanSources(tpID)
+		rawSrcs, err := withBackoff(func() (interface{}, error) { return client.ListTrackingPlanSources(tpID) }, configApiInitialDelay, 10)
 		if err != nil {
 			return "", diagFromErrPtr(err)
 		}
+		srcs := rawSrcs.([]segment.TrackingPlanSourceConnection)
 
 		for _, currSrc := range srcs {
 			if pathToName(currSrc.Source) == source {
 				return tpID, nil
 			}
 		}
-		// Segment API rate-limits at 60 calls/sec, so we delay the next call to avoid getting a 429
-		time.Sleep(configApiDelay)
 	}
 
 	return "", nil
@@ -450,4 +451,17 @@ func suppressSchemaConfigDiff(k, old, new string, d *schema.ResourceData) bool {
 	noChange := !d.HasChange(keySchemaConfig)
 	isUsingDefaultConfig := reflect.DeepEqual(config, defaultSourceConfig)
 	return noChange && isUsingDefaultConfig
+}
+
+// withBackoff calls the passed function returning a result and an error and performs an exponential backoff if it fails with a 429 HTTP status code
+func withBackoff(call func() (interface{}, error), initialRetryDelay time.Duration, maxRetries int) (interface{}, error) {
+	results, err := call()
+	if err != nil {
+		if e, ok := err.(*segment.SegmentApiError); ok && e.Code == http.StatusTooManyRequests && maxRetries > 0 {
+			time.Sleep(initialRetryDelay)
+			return withBackoff(call, initialRetryDelay*2, maxRetries-1)
+		}
+	}
+
+	return results, err
 }
