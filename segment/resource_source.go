@@ -400,6 +400,7 @@ type TrackingPlansConnectionsCache map[string]string
 
 func (cache TrackingPlansConnectionsCache) find(source string) string {
 	if tp := cache[pathToName(source)]; tp != "" {
+		log.Printf("[INFO] Tracking plan cache hit for %s <-> %s", source, tp)
 		return tp
 	}
 
@@ -407,6 +408,11 @@ func (cache TrackingPlansConnectionsCache) find(source string) string {
 }
 
 func (cache TrackingPlansConnectionsCache) add(connections []segment.TrackingPlanSourceConnection) {
+	if len(connections) < 1 {
+		return
+	}
+
+	log.Printf("[INFO] Caching %d connections for %s", len(connections), connections[0].TrackingPlanId)
 	for _, currSrc := range connections {
 		source := pathToName(currSrc.Source)
 		cache[source] = currSrc.TrackingPlanId
@@ -480,6 +486,7 @@ func withBackoff(call func() (interface{}, error), initialRetryDelay time.Durati
 	results, err := call()
 	if err != nil {
 		if e, ok := err.(*segment.SegmentApiError); ok && e.Code == http.StatusTooManyRequests && maxRetries > 0 {
+			log.Printf("[INFO] Backoff: failed, waiting %sms before retrying, %d tries left", initialRetryDelay, maxRetries)
 			time.Sleep(initialRetryDelay)
 			return withBackoff(call, initialRetryDelay*2, maxRetries-1)
 		}
