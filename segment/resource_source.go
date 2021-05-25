@@ -417,6 +417,9 @@ func (cache TrackingPlansConnectionsCache) add(connections []segment.TrackingPla
 		source := pathToName(currSrc.Source)
 		cache[source] = currSrc.TrackingPlanId
 	}
+
+	log.Printf("[INFO] Cache has %d entries", len(cache))
+	log.Printf("[INFO] C%v", cache)
 }
 
 // findTrackingPlanSourceConnection finds the connected tracking plan, or "" if the source is not connected
