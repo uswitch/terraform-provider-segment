@@ -3,6 +3,7 @@ package segment
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -21,6 +22,7 @@ const (
 	keyCatalog            = "catalog_name"
 	keyTrackingPlan       = "tracking_plan"
 	keySchemaConfig       = "schema_config"
+	keyDestination        = "destination"
 	configApiInitialDelay = 75 * time.Millisecond
 	configApiMaxRetries   = 30
 )
@@ -129,34 +131,39 @@ var destinationSchema = schema.Resource{
 		},
 		"parent": {
 			Type:     schema.TypeString,
-			Required: true,
 			Computed: true,
 		},
 		"display_name": {
 			Type:     schema.TypeString,
 			Computed: true,
-			Required: true,
+		},
+		"create_time": {
+			Type:     schema.TypeInt,
+			Computed: true,
+		},
+		"update_time": {
+			Type:     schema.TypeInt,
+			Computed: true,
 		},
 		"connection_mode": {
 			Type:         schema.TypeString,
-			Computed:     true,
 			Optional:     true,
+			Computed:     true,
 			ValidateFunc: validation.StringInSlice([]string{"UNSPECIFIED", "CLOUD"}, false),
 		},
 		"config": {
-			Type:     schema.TypeList,
+			Type:     schema.TypeSet,
 			Required: true,
 			Elem: &schema.Resource{
 				Schema: map[string]*schema.Schema{
 					"name": {
 						Type:     schema.TypeString,
-						ForceNew: true,
 						Required: true,
 					},
 					"type": {
 						Type:         schema.TypeString,
 						Required:     true,
-						ExactlyOneOf: []string{"string", "boolean", "number", "map", "select"},
+						ValidateFunc: validation.StringInSlice([]string{"string", "boolean", "number", "map", "select", "mixed"}, false),
 					},
 					"value_json": {
 						Type:     schema.TypeString,
@@ -165,7 +172,6 @@ var destinationSchema = schema.Resource{
 					"display_name": {
 						Type:     schema.TypeString,
 						Computed: true,
-						Required: true,
 					},
 				},
 			},
@@ -197,6 +203,11 @@ func resourceSegmentSource() *schema.Resource {
 				RequiredWith:     []string{keyTrackingPlan},
 				DiffSuppressFunc: suppressSchemaConfigDiff,
 				Elem:             &schemaConfigSchema,
+			},
+			keyDestination: {
+				Type:     schema.TypeSet,
+				Optional: true,
+				Elem:     &destinationSchema,
 			},
 		},
 		CreateContext: resourceSegmentSourceCreate,
@@ -255,10 +266,11 @@ func resourceSegmentSourceRead(_ context.Context, r *schema.ResourceData, m inte
 	}
 
 	var destinations []map[string]interface{}
-	if err := encodeDestinations(dests.Destinations, destinations); err != nil {
+	if err := encodeDestinations(dests.Destinations, &destinations); err != nil {
 		return *err
 	}
-	r.Set("destinations", destinations)
+	log.Printf("[INFO] FETCHED DESTINATIONS: %v", dests)
+	r.Set("destination", destinations)
 
 	log.Printf("[INFO] Done reading source %s", id)
 
@@ -376,7 +388,10 @@ func decodeSourceConfig(rawConfigMap interface{}, dst *segment.SourceConfig) (di
 	return
 }
 
-func encodeDestinations(destinations []segment.Destination, encoded []map[string]interface{}) *diag.Diagnostics {
+func encodeDestinations(destinations []segment.Destination, encoded *[]map[string]interface{}) *diag.Diagnostics {
+	if encoded == nil {
+		return diagFromErrPtr(errors.New("destination config encoded map cannot be nil"))
+	}
 	for _, destination := range destinations {
 		d := map[string]interface{}{
 			"name":            pathToName(destination.Name),
@@ -384,8 +399,8 @@ func encodeDestinations(destinations []segment.Destination, encoded []map[string
 			"enabled":         destination.Enabled,
 			"connection_mode": destination.ConnectionMode,
 			"parent":          destination.Parent,
-			"create_time":     destination.CreateTime,
-			"update_time":     destination.UpdateTime,
+			"create_time":     destination.CreateTime.Unix(),
+			"update_time":     destination.UpdateTime.Unix(),
 		}
 
 		configs := []map[string]interface{}{}
@@ -398,15 +413,15 @@ func encodeDestinations(destinations []segment.Destination, encoded []map[string
 				"name":         pathToName(config.Name),
 				"display_name": config.DisplayName,
 				"type":         config.Type,
-				"value":        "",
+				"value_json":   value,
 			}
 
 			configs = append(configs, c)
 		}
 
-		d["configs"] = configs
+		d["config"] = configs
 
-		encoded = append(encoded, d)
+		*encoded = append(*encoded, d)
 	}
 
 	return nil
