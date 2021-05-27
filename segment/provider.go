@@ -26,6 +26,7 @@ func Provider() *schema.Provider {
 		ResourcesMap: map[string]*schema.Resource{
 			"tracking_plan": resourceTrackingPlan(),
 			"source":        resourceSegmentSource(),
+			"destination":   resourceSegmentDestination(),
 		},
 		DataSourcesMap:       map[string]*schema.Resource{},
 		ConfigureContextFunc: providerConfigure,
