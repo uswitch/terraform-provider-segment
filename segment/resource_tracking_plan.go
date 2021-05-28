@@ -91,7 +91,8 @@ func diffRulesJSONState(_, old, new string, _ *schema.ResourceData) bool {
 }
 
 func resourceTrackingPlanCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	client := m.(*segment.Client)
+	meta := m.(ProviderMetadata)
+	client := meta.client
 
 	// Read tracking plan rules
 	var tpRules segment.RuleSet
@@ -134,7 +135,8 @@ func resourceTrackingPlanCreate(ctx context.Context, d *schema.ResourceData, m i
 func resourceTrackingPlanRead(_ context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	log.Println("[INFO] Reading tracking plans")
 	var diags diag.Diagnostics
-	client := m.(*segment.Client)
+	meta := m.(ProviderMetadata)
+	client := meta.client
 
 	tp, err := client.GetTrackingPlan(d.Id())
 	if err != nil {
@@ -209,7 +211,8 @@ func resourceTrackingPlanRead(_ context.Context, d *schema.ResourceData, m inter
 
 func resourceTrackingPlanUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
-	client := m.(*segment.Client)
+	meta := m.(ProviderMetadata)
+	client := meta.client
 
 	tpID := d.Id()
 	if d.HasChanges("display_name", "rules_json_file", "import_from") {
@@ -251,7 +254,8 @@ func resourceTrackingPlanUpdate(ctx context.Context, d *schema.ResourceData, m i
 }
 
 func resourceTrackingPlanDelete(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	client := m.(*segment.Client)
+	meta := m.(ProviderMetadata)
+	client := meta.client
 
 	err := client.DeleteTrackingPlan(d.Id())
 	if err != nil {
