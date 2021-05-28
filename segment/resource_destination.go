@@ -14,46 +14,58 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
+const (
+	keyDestSource      = "source"
+	keyDestName        = "name"
+	keyDestEnabled     = "enabled"
+	keyDestDisplayName = "display_name"
+	keyDestCreateTime  = "create_time"
+	keyDestUpdateTime  = "update_time"
+	keyDestConMode     = "connection_mode"
+	keyDestConfig      = "config"
+	keyDestParent      = "parent"
+)
+
 func resourceSegmentDestination() *schema.Resource {
 	return &schema.Resource{
 		Schema: map[string]*schema.Schema{
-			"source": {
+			keyDestSource: {
 				Type:             schema.TypeString,
 				Required:         true,
 				ForceNew:         true,
 				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool { return true },
 			},
-			"name": {
+			keyDestName: {
 				Type:     schema.TypeString,
 				Required: true,
 			},
-			"enabled": {
+			keyDestEnabled: {
 				Type:     schema.TypeBool,
 				Required: true,
 			},
-			"parent": {
+			keyDestParent: {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
-			"display_name": {
+			keyDestDisplayName: {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
-			"create_time": {
+			keyDestCreateTime: {
 				Type:     schema.TypeInt,
 				Computed: true,
 			},
-			"update_time": {
+			keyDestUpdateTime: {
 				Type:     schema.TypeInt,
 				Computed: true,
 			},
-			"connection_mode": {
+			keyDestConMode: {
 				Type:         schema.TypeString,
 				Optional:     true,
 				Computed:     true,
 				ValidateFunc: validation.StringInSlice([]string{"UNSPECIFIED", "CLOUD", "DEVICE"}, false),
 			},
-			"config": {
+			keyDestConfig: {
 				Type:     schema.TypeMap,
 				Required: true,
 				Elem: &schema.Schema{
@@ -87,7 +99,8 @@ func destinationResourceId(src string, dst string) string {
 }
 
 func resourceSegmentDestinationRead(_ context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
-	client := m.(*segment.Client)
+	meta := m.(ProviderMetadata)
+	client := meta.client
 	srcName, dstName := idToSourceAndDest(r)
 
 	d, err := client.GetDestination(srcName, dstName)
@@ -100,27 +113,34 @@ func resourceSegmentDestinationRead(_ context.Context, r *schema.ResourceData, m
 		return *err
 	}
 
-	r.Set("source", srcName)
-	r.Set("name", pathToName(d.Name))
-	r.Set("enabled", d.Enabled)
-	r.Set("parent", d.Parent)
-	r.Set("display_name", d.DisplayName)
-	r.Set("connection_mode", d.ConnectionMode)
-	r.Set("config", config)
-	r.Set("create_time", d.CreateTime.Unix())
-	r.Set("update_time", d.UpdateTime.Unix())
+	r.Set(keyDestSource, srcName)
+	r.Set(keyDestName, pathToName(d.Name))
+	r.Set(keyDestEnabled, d.Enabled)
+	r.Set(keyDestParent, d.Parent)
+	r.Set(keyDestDisplayName, d.DisplayName)
+	r.Set(keyDestConMode, d.ConnectionMode)
+	r.Set(keyDestConfig, config)
+	r.Set(keyDestCreateTime, d.CreateTime.Unix())
+	r.Set(keyDestUpdateTime, d.UpdateTime.Unix())
 
 	return nil
 }
 
 func resourceSegmentDestinationUpdate(ctx context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
-	client := m.(*segment.Client)
-	srcName := r.Get("source").(string)
-	destName := r.Get("name").(string)
-	enabled := r.Get("enabled").(bool)
+	meta := m.(ProviderMetadata)
+	client := meta.client
+	srcName := r.Get(keyDestSource).(string)
+	destName := r.Get(keyDestName).(string)
+	enabled := r.Get(keyDestEnabled).(bool)
+
+	log.Println("[INFO] Fetching current config for " + srcName)
+	d, err := client.GetDestination(srcName, destName)
+	if err != nil {
+		return diag.FromErr(err)
+	}
 
 	config := []segment.DestinationConfig{}
-	if d := decodeDestinationConfig("uswitch-sandbox", srcName, destName, r.Get("config"), &config); d != nil {
+	if d := decodeDestinationConfig(meta.workspace, srcName, destName, r.Get("config"), d.Configs, &config); d != nil {
 		return *d
 	}
 
@@ -132,15 +152,22 @@ func resourceSegmentDestinationUpdate(ctx context.Context, r *schema.ResourceDat
 }
 
 func resourceSegmentDestinationCreate(ctx context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
-	client := m.(*segment.Client)
-	srcName := r.Get("source").(string)
-	destName := r.Get("name").(string)
+	meta := m.(ProviderMetadata)
+	client := meta.client
+	srcName := r.Get(keyDestSource).(string)
+	destName := r.Get(keyDestName).(string)
 	id := destinationResourceId(srcName, destName)
 
-	mode := r.Get("connection_mode").(string)
-	enabled := r.Get("enabled").(bool)
+	log.Println("[INFO] Fetching current config for " + srcName)
+	d, err := client.GetDestination(srcName, destName)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+
+	mode := r.Get(keyDestConMode).(string)
+	enabled := r.Get(keyDestEnabled).(bool)
 	var config []segment.DestinationConfig
-	if d := decodeDestinationConfig("uswitch-sandbox", srcName, destName, r.Get("config"), &config); d != nil {
+	if d := decodeDestinationConfig(meta.workspace, srcName, destName, r.Get("config"), d.Configs, &config); d != nil {
 		return *d
 	}
 
@@ -154,9 +181,10 @@ func resourceSegmentDestinationCreate(ctx context.Context, r *schema.ResourceDat
 }
 
 func resourceSegmentDestinationDelete(_ context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
-	client := m.(*segment.Client)
-	srcName := r.Get("source").(string)
-	destName := r.Get("name").(string)
+	meta := m.(ProviderMetadata)
+	client := meta.client
+	srcName := r.Get(keySource).(string)
+	destName := r.Get(keyDestName).(string)
 
 	err := client.DeleteDestination(srcName, destName)
 	if err != nil {
@@ -188,12 +216,13 @@ func encodeDestinationConfig(destination segment.Destination, encoded *map[strin
 	return nil
 }
 
-func decodeDestinationConfig(workspace string, srcName string, destName string, rawConfig interface{}, dst *[]segment.DestinationConfig) (diags *diag.Diagnostics) {
+func decodeDestinationConfig(workspace string, srcName string, destName string, rawConfig interface{}, currentConfig []segment.DestinationConfig, dst *[]segment.DestinationConfig) (diags *diag.Diagnostics) {
 	defer func() {
 		if r := recover(); r != nil {
 			diags = diagFromErrPtr(fmt.Errorf("failed to decode destination config: %w", r.(error)))
 		}
 	}()
+	log.Printf("[INFO] current conf: %v", currentConfig)
 
 	configs := rawConfig.(map[string]interface{})
 	for k, configRaw := range configs {
@@ -202,14 +231,12 @@ func decodeDestinationConfig(workspace string, srcName string, destName string, 
 			panic(fmt.Errorf("invalid config value: %s", configRaw))
 		}
 
-		// Version will error on update to the Config API
+		// TODO: Version will error on update to the Config API, remove when it's fixed
 		if k == "version" {
 			continue
 		}
 
 		config.Name = fmt.Sprintf("workspaces/%s/sources/%s/destinations/%s/config/%s", workspace, srcName, destName, k)
-
-		log.Printf("CONFIG: %v", config)
 
 		*dst = append(*dst, config)
 	}

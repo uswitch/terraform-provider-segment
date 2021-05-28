@@ -150,7 +150,8 @@ func resourceSegmentSource() *schema.Resource {
 }
 
 func resourceSegmentSourceRead(_ context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
-	client := m.(*segment.Client)
+	meta := m.(ProviderMetadata)
+	client := meta.client
 	id := r.Id()
 
 	rawSource, err := withBackoff(func() (interface{}, error) { return client.GetSource(id) }, configApiInitialDelay, configApiMaxRetries)
@@ -167,7 +168,7 @@ func resourceSegmentSourceRead(_ context.Context, r *schema.ResourceData, m inte
 		return diag.FromErr(err)
 	}
 
-	tpID, d := initTrackingPlan(r.Get(keyTrackingPlan).(string), id, *client)
+	tpID, d := initTrackingPlan(r.Get(keyTrackingPlan).(string), id, client)
 	if d != nil {
 		log.Println("[WARN] Error initialising tracking plan")
 		return *d
@@ -207,7 +208,8 @@ func resourceSegmentSourceRead(_ context.Context, r *schema.ResourceData, m inte
 }
 
 func resourceSegmentSourceCreate(ctx context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
-	client := m.(*segment.Client)
+	meta := m.(ProviderMetadata)
+	client := meta.client
 	srcName := r.Get(keySource).(string)
 	catName := r.Get(keyCatalog).(string)
 
@@ -226,11 +228,11 @@ func resourceSegmentSourceCreate(ctx context.Context, r *schema.ResourceData, m 
 		return d
 	}
 
-	if d := updateTrackingPlan(r, *client); d != nil {
+	if d := updateTrackingPlan(r, client); d != nil {
 		return revertCreation(*d)
 	}
 
-	if d := updateSchemaConfig(r, *client); d != nil {
+	if d := updateSchemaConfig(r, client); d != nil {
 		return revertCreation(*d)
 	}
 
@@ -240,14 +242,15 @@ func resourceSegmentSourceCreate(ctx context.Context, r *schema.ResourceData, m 
 }
 
 func resourceSegmentSourceUpdate(ctx context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
-	client := m.(*segment.Client)
+	meta := m.(ProviderMetadata)
+	client := meta.client
 	srcName := r.Get(keySource).(string)
 
-	if d := updateTrackingPlan(r, *client); d != nil {
+	if d := updateTrackingPlan(r, client); d != nil {
 		return *d
 	}
 
-	if d := updateSchemaConfig(r, *client); d != nil {
+	if d := updateSchemaConfig(r, client); d != nil {
 		return *d
 	}
 
@@ -257,7 +260,8 @@ func resourceSegmentSourceUpdate(ctx context.Context, r *schema.ResourceData, m 
 }
 
 func resourceSegmentSourceDelete(_ context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
-	client := m.(*segment.Client)
+	meta := m.(ProviderMetadata)
+	client := meta.client
 	id := r.Id()
 
 	err := client.DeleteSource(id)
