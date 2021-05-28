@@ -41,7 +41,12 @@ func providerConfigure(_ context.Context, d *schema.ResourceData) (interface{}, 
 
 	if accessToken != "" && workSpace != "" {
 		c := segment.NewClient(accessToken, workSpace)
-		return c, diags
+		if c != nil {
+			return ProviderMetadata{
+				client:    *c,
+				workspace: workSpace,
+			}, diags
+		}
 	}
 
 	diags = append(diags, diag.Diagnostic{
@@ -50,4 +55,9 @@ func providerConfigure(_ context.Context, d *schema.ResourceData) (interface{}, 
 		Detail:   "Access token and workspace values cannot be empty",
 	})
 	return nil, diags
+}
+
+type ProviderMetadata struct {
+	client    segment.Client
+	workspace string
 }
