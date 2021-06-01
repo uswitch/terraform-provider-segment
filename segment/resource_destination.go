@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/ajbosco/segment-config-go/segment"
+	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
@@ -52,7 +53,7 @@ func resourceSegmentDestination() *schema.Resource {
 				Computed: true,
 			},
 			keyDestCreateTime: {
-				Type:     schema.TypeInt,
+				Type:     schema.TypeString,
 				Computed: true,
 			},
 			keyDestUpdateTime: {
@@ -71,6 +72,7 @@ func resourceSegmentDestination() *schema.Resource {
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
 				},
+				ValidateDiagFunc: validateDestinationConfig,
 			},
 		},
 		CreateContext: resourceSegmentDestinationCreate,
@@ -81,21 +83,6 @@ func resourceSegmentDestination() *schema.Resource {
 			StateContext: schema.ImportStatePassthroughContext,
 		},
 	}
-}
-
-func idToSourceAndDest(r *schema.ResourceData) (string, string) {
-	id := r.Id()
-	parts := strings.Split(id, "/")
-
-	if len(parts) > 2 {
-		panic("Invalid destination id: " + id)
-	}
-
-	return parts[0], parts[1]
-}
-
-func destinationResourceId(src string, dst string) string {
-	return src + "/" + "dst"
 }
 
 func resourceSegmentDestinationRead(_ context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
@@ -113,15 +100,33 @@ func resourceSegmentDestinationRead(_ context.Context, r *schema.ResourceData, m
 		return *err
 	}
 
-	r.Set(keyDestSource, srcName)
-	r.Set(keyDestName, pathToName(d.Name))
-	r.Set(keyDestEnabled, d.Enabled)
-	r.Set(keyDestParent, d.Parent)
-	r.Set(keyDestDisplayName, d.DisplayName)
-	r.Set(keyDestConMode, d.ConnectionMode)
-	r.Set(keyDestConfig, config)
-	r.Set(keyDestCreateTime, d.CreateTime.Unix())
-	r.Set(keyDestUpdateTime, d.UpdateTime.Unix())
+	if err := r.Set(keyDestSource, srcName); err != nil {
+		return diag.FromErr(err)
+	}
+	if err := r.Set(keyDestName, pathToName(d.Name)); err != nil {
+		return diag.FromErr(err)
+	}
+	if err := r.Set(keyDestEnabled, d.Enabled); err != nil {
+		return diag.FromErr(err)
+	}
+	if err := r.Set(keyDestParent, d.Parent); err != nil {
+		return diag.FromErr(err)
+	}
+	if err := r.Set(keyDestDisplayName, d.DisplayName); err != nil {
+		return diag.FromErr(err)
+	}
+	if err := r.Set(keyDestConMode, d.ConnectionMode); err != nil {
+		return diag.FromErr(err)
+	}
+	if err := r.Set(keyDestConfig, config); err != nil {
+		return diag.FromErr(err)
+	}
+	if err := r.Set(keyDestCreateTime, d.CreateTime.String()); err != nil {
+		return diag.FromErr(err)
+	}
+	if err := r.Set(keyDestUpdateTime, d.UpdateTime.String()); err != nil {
+		return diag.FromErr(err)
+	}
 
 	return nil
 }
@@ -140,7 +145,7 @@ func resourceSegmentDestinationUpdate(ctx context.Context, r *schema.ResourceDat
 	}
 
 	config := []segment.DestinationConfig{}
-	if d := decodeDestinationConfig(meta.workspace, srcName, destName, r.Get("config"), d.Configs, &config); d != nil {
+	if d := decodeDestinationConfig(meta.workspace, srcName, destName, d.Configs, &config); d != nil {
 		return *d
 	}
 
@@ -159,7 +164,7 @@ func resourceSegmentDestinationCreate(ctx context.Context, r *schema.ResourceDat
 	id := destinationResourceId(srcName, destName)
 
 	log.Println("[INFO] Fetching current config for " + srcName)
-	d, err := client.GetDestination(srcName, destName)
+	_, err := client.GetDestination(srcName, destName)
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -167,7 +172,7 @@ func resourceSegmentDestinationCreate(ctx context.Context, r *schema.ResourceDat
 	mode := r.Get(keyDestConMode).(string)
 	enabled := r.Get(keyDestEnabled).(bool)
 	var config []segment.DestinationConfig
-	if d := decodeDestinationConfig(meta.workspace, srcName, destName, r.Get("config"), d.Configs, &config); d != nil {
+	if d := decodeDestinationConfig(meta.workspace, srcName, destName, r.Get("config"), &config); d != nil {
 		return *d
 	}
 
@@ -216,19 +221,23 @@ func encodeDestinationConfig(destination segment.Destination, encoded *map[strin
 	return nil
 }
 
-func decodeDestinationConfig(workspace string, srcName string, destName string, rawConfig interface{}, currentConfig []segment.DestinationConfig, dst *[]segment.DestinationConfig) (diags *diag.Diagnostics) {
+func decodeDestinationConfig(workspace string, srcName string, destName string, rawConfig interface{}, dst *[]segment.DestinationConfig) (diags *diag.Diagnostics) {
 	defer func() {
 		if r := recover(); r != nil {
 			diags = diagFromErrPtr(fmt.Errorf("failed to decode destination config: %w", r.(error)))
 		}
 	}()
-	log.Printf("[INFO] current conf: %v", currentConfig)
 
 	configs := rawConfig.(map[string]interface{})
 	for k, configRaw := range configs {
 		var config segment.DestinationConfig
 		if json.Unmarshal([]byte(configRaw.(string)), &config) != nil {
 			panic(fmt.Errorf("invalid config value: %s", configRaw))
+		}
+
+		config.Name = k
+		if d := validateConfigValue(config); d != nil {
+			return d
 		}
 
 		// TODO: Version will error on update to the Config API, remove when it's fixed
@@ -244,4 +253,61 @@ func decodeDestinationConfig(workspace string, srcName string, destName string, 
 	return nil
 }
 
+func validateConfigValue(config segment.DestinationConfig) *diag.Diagnostics {
+	switch config.Type {
+	case "string", "password":
+		if _, ok := config.Value.(string); !ok {
+			return configTypeError(config.Name, config.Type, config.Value)
+		}
+	case "number":
+		if _, ok := config.Value.(float32); !ok {
+			return configTypeError(config.Name, config.Type, config.Value)
+		}
+	case "boolean":
+		if _, ok := config.Value.(bool); !ok {
+			return configTypeError(config.Name, config.Type, config.Value)
+		}
+	case "select":
+		if _, ok := config.Value.(string); !ok {
+			return configTypeError(config.Name, config.Type, config.Value)
+		}
+	case "mixed":
+		if _, ok := config.Value.([]interface{}); !ok {
+			return configTypeError(config.Name, config.Type, config.Value)
+		}
+	default:
+		return nil
+	}
+
+	return nil
+}
+
+func validateDestinationConfig(i interface{}, _ cty.Path) diag.Diagnostics {
+	var c []segment.DestinationConfig
+	if d := decodeDestinationConfig("test", "test", "test", i, &c); d != nil {
+		return *d
+	}
+	return nil
+}
+
+func configTypeError(name string, typ string, value interface{}) *diag.Diagnostics {
+	d := diag.Errorf("Unexpected config value for %s of expected type %s: %v", name, typ, value)
+	return &d
+}
+
 // Misc Helpers
+
+func idToSourceAndDest(r *schema.ResourceData) (string, string) {
+	id := r.Id()
+	parts := strings.Split(id, "/")
+
+	if len(parts) > 2 {
+		panic("Invalid destination id: " + id)
+	}
+
+	return parts[0], parts[1]
+}
+
+func destinationResourceId(src string, dst string) string {
+	return src + "/" + "dst"
+}
