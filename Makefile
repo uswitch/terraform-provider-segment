@@ -15,7 +15,7 @@ build:
 
 .PHONY: release
 release:
-	BUMPED=$$(bin/bump.sh $(VERSION) $(TYPE)); \
+	BUMPED=$$(bin/bump.sh $(VERSION) $(TYPE) $(BETA)); \
 	git tag $${BUMPED}; \
 	echo "tag $${BUMPED}" created
 	git push --tags
