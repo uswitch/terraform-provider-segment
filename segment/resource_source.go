@@ -169,8 +169,10 @@ func resourceSegmentSourceRead(_ context.Context, r *schema.ResourceData, m inte
 
 	tpID, d := initTrackingPlan(r.Get(keyTrackingPlan).(string), id, *client)
 	if d != nil {
+		log.Println("[WARN] Error initialising tracking plan")
 		return *d
 	}
+	log.Println("[INFO] Done initialising tracking plan")
 
 	hasTrackingPlanSet := tpID != ""
 	if hasTrackingPlanSet {
@@ -187,6 +189,7 @@ func resourceSegmentSourceRead(_ context.Context, r *schema.ResourceData, m inte
 		}
 	}
 
+	log.Printf("[INFO] Done reading source %s", id)
 	return nil
 }
 
