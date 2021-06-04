@@ -19,3 +19,6 @@ release:
 	git tag $${BUMPED}; \
 	echo "tag $${BUMPED}" created
 	git push --tags
+
+test:
+	go test ./...
