@@ -84,6 +84,7 @@ func diffRulesJSONState(_, old, new string, _ *schema.ResourceData) bool {
 	if old == "" || new == "" {
 		return old == new
 	}
+
 	encodedNew := unmarshalGeneric(new)
 	encodedOld := unmarshalGeneric(old)
 	return reflect.DeepEqual(encodedOld, encodedNew)
@@ -160,11 +161,15 @@ func resourceTrackingPlanRead(_ context.Context, d *schema.ResourceData, m inter
 		log.Println("[ERROR] Libs extraction failed")
 		return diag.FromErr(err)
 	}
-	rawLibs, err := json.Marshal(eventLibs)
-	if err != nil {
-		return diag.FromErr(err)
+	var libsConfig string
+	if eventLibs != nil {
+		rawLibs, err := json.Marshal(eventLibs)
+		if err != nil {
+			return diag.FromErr(err)
+		}
+		libsConfig = string(rawLibs)
 	}
-	if err = d.Set("import_from", string(rawLibs)); err != nil {
+	if err = d.Set("import_from", libsConfig); err != nil {
 		return diag.FromErr(err)
 	}
 
@@ -176,12 +181,12 @@ func resourceTrackingPlanRead(_ context.Context, d *schema.ResourceData, m inter
 	libsCount := len(eventLibsFlat.Events)
 	log.Printf("[INFO] Searching %d lib events", libsCount)
 	for _, evnt := range tp.Rules.Events {
-		found := sort.Search(libsCount, func(i int) bool {
+		found := searchEvent(libsCount, func(i int) bool {
 			log.Printf("[INFO] comparing index %d -  %s == %s", i, evnt.Name, eventLibsFlat.Events[i].Name)
-			return evnt.Name <= eventLibsFlat.Events[i].Name
+			return evnt.Name == eventLibsFlat.Events[i].Name
 		})
 		log.Printf("[INFO] %s found at %d", evnt.Name, found)
-		if found >= libsCount {
+		if found > -1 {
 			sourceEvents = append(sourceEvents, evnt)
 		}
 	}
@@ -273,9 +278,9 @@ func flattenEventLibs(eventLibs []segment.RuleSet) segment.RuleSet {
 
 func readEventLibs(eventLibsIntfcs interface{}, ok bool) ([]segment.RuleSet, error) {
 	log.Println("[INFO] Reading event libs")
-	if !ok {
+	if !ok || eventLibsIntfcs == nil {
 		log.Println("[INFO] No libs defined")
-		return []segment.RuleSet{}, nil
+		return nil, nil
 	}
 
 	var decodedEventLibs []segment.RuleSet
@@ -305,18 +310,29 @@ func mergeEvents(evtLibEvents []segment.Event, tpEvents []segment.Event) []segme
 	return mergedEvents
 }
 
+func searchEvent(len int, eq func(i int) bool) int {
+	for i := 0; i < len; i++ {
+		if eq(i) {
+			return i
+		}
+	}
+
+	return -1
+}
+
 // State migrations
 
 // V1 -> V2
 
 func readEventLibsV1(eventLibsIntfcs interface{}, ok bool) ([]segment.RuleSet, error) {
 	log.Println("[INFO] Reading v1 event libs")
-	if !ok {
-		return []segment.RuleSet{}, nil
+	if !ok || eventLibsIntfcs == nil {
+		log.Println("[INFO] No libs defined")
+		return nil, nil
 	}
 
 	eventLibsJSONSlice := eventLibsIntfcs.([]interface{})
-	var decodedEventLibs []segment.RuleSet
+	decodedEventLibs := []segment.RuleSet{}
 	for _, eventLibJSON := range eventLibsJSONSlice {
 		var eventLib segment.RuleSet
 		if err := json.Unmarshal([]byte(eventLibJSON.(string)), &eventLib); err != nil {
@@ -372,10 +388,16 @@ func TpV1V2Upgrader() schema.StateUpgrader {
 		Upgrade: func(_ context.Context, rawState map[string]interface{}, _ interface{}) (map[string]interface{}, error) {
 			log.Println("[INFO] Migrating Schema V1 -> V2")
 			value, ok := rawState["import_from"]
+
 			old, err := readEventLibsV1(value, ok)
 			if err != nil {
 				log.Println("[INFO] Migration V1 -> V2 failed")
 				return nil, err
+			}
+
+			if old == nil {
+				log.Println("[INFO] import_from not set, skipping")
+				return rawState, nil
 			}
 
 			libsJSON, err := json.Marshal(old)
@@ -386,7 +408,7 @@ func TpV1V2Upgrader() schema.StateUpgrader {
 
 			rawState["import_from"] = string(libsJSON)
 
-			log.Printf("[INFO] Successfully migrated V1 -> V2: %s", rawState["import_from"])
+			log.Println("[INFO] Successfully migrated V1 -> V2")
 			return rawState, nil
 		},
 		Version: 1,
