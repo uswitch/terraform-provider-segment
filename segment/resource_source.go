@@ -188,20 +188,7 @@ func resourceSegmentSourceRead(_ context.Context, r *schema.ResourceData, m inte
 		}
 	}
 
-	dests, err := client.ListDestinations(id)
-	if err != nil {
-		return diag.FromErr(err)
-	}
-
-	var destinations []map[string]interface{}
-	if err := encodeDestinations(dests.Destinations, &destinations); err != nil {
-		return *err
-	}
-	log.Printf("[INFO] FETCHED DESTINATIONS: %v", dests)
-	r.Set("destination", destinations)
-
 	log.Printf("[INFO] Done reading source %s", id)
-
 	return nil
 }
 
@@ -428,8 +415,6 @@ func findTrackingPlanSourceConnection(source string, client segment.Client) (str
 
 	return cache.find(source), nil
 }
-
-// Misc Helpers
 
 // suppressSchemaConfigDiff hides changes to schema config when it is not specified explicitely but using the default one
 func suppressSchemaConfigDiff(k, old, new string, d *schema.ResourceData) bool {
