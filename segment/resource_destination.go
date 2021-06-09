@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"reflect"
 	"strings"
 
 	"github.com/ajbosco/segment-config-go/segment"
@@ -260,7 +261,9 @@ func validateConfigValue(config segment.DestinationConfig) *diag.Diagnostics {
 			return configTypeError(config.Name, config.Type, config.Value)
 		}
 	case "number":
-		if _, ok := config.Value.(float32); !ok {
+		floatType := reflect.TypeOf(float64(0))
+		v := reflect.Indirect(reflect.ValueOf(config.Value))
+		if !v.Type().ConvertibleTo(floatType) {
 			return configTypeError(config.Name, config.Type, config.Value)
 		}
 	case "boolean":
