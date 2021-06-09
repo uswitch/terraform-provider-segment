@@ -186,7 +186,7 @@ func resourceTrackingPlanRead(_ context.Context, d *schema.ResourceData, m inter
 			return evnt.Name == eventLibsFlat.Events[i].Name
 		})
 		log.Printf("[INFO] %s found at %d", evnt.Name, found)
-		if found > -1 {
+		if found < 0 {
 			sourceEvents = append(sourceEvents, evnt)
 		}
 	}
