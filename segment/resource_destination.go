@@ -32,10 +32,9 @@ func resourceSegmentDestination() *schema.Resource {
 	return &schema.Resource{
 		Schema: map[string]*schema.Schema{
 			keyDestSource: {
-				Type:             schema.TypeString,
-				Required:         true,
-				ForceNew:         true,
-				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool { return true },
+				Type:     schema.TypeString,
+				Required: true,
+				ForceNew: true,
 			},
 			keyDestName: {
 				Type:     schema.TypeString,
@@ -58,7 +57,7 @@ func resourceSegmentDestination() *schema.Resource {
 				Computed: true,
 			},
 			keyDestUpdateTime: {
-				Type:     schema.TypeInt,
+				Type:     schema.TypeString,
 				Computed: true,
 			},
 			keyDestConMode: {
@@ -189,8 +188,7 @@ func resourceSegmentDestinationCreate(ctx context.Context, r *schema.ResourceDat
 func resourceSegmentDestinationDelete(_ context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
 	meta := m.(ProviderMetadata)
 	client := meta.client
-	srcName := r.Get(keySource).(string)
-	destName := r.Get(keyDestName).(string)
+	srcName, destName := idToSourceAndDest(r)
 
 	err := client.DeleteDestination(srcName, destName)
 	if err != nil {
@@ -312,5 +310,5 @@ func idToSourceAndDest(r *schema.ResourceData) (string, string) {
 }
 
 func destinationResourceId(src string, dst string) string {
-	return src + "/" + "dst"
+	return src + "/" + dst
 }
