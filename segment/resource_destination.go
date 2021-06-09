@@ -58,7 +58,7 @@ func resourceSegmentDestination() *schema.Resource {
 				Computed: true,
 			},
 			keyDestUpdateTime: {
-				Type:     schema.TypeInt,
+				Type:     schema.TypeString,
 				Computed: true,
 			},
 			keyDestConMode: {
