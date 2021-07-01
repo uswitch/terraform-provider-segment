@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"log"
-	"reflect"
 	"regexp"
 	"sort"
 
@@ -77,17 +76,6 @@ func unmarshalGeneric(input string) interface{} {
 	}
 
 	return decodedStr
-}
-
-// diffRulesJSONState suppresses diff if json values are equivalent, independant of whitespace or order of keys
-func diffRulesJSONState(_, old, new string, _ *schema.ResourceData) bool {
-	if old == "" || new == "" {
-		return old == new
-	}
-
-	encodedNew := unmarshalGeneric(new)
-	encodedOld := unmarshalGeneric(old)
-	return reflect.DeepEqual(encodedOld, encodedNew)
 }
 
 func resourceTrackingPlanCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
