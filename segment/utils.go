@@ -3,11 +3,13 @@ package segment
 import (
 	"log"
 	"net/http"
+	"reflect"
 	"strings"
 	"time"
 
 	"github.com/ajbosco/segment-config-go/segment"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func diagFromErrPtr(err error) *diag.Diagnostics {
@@ -38,4 +40,15 @@ func withBackoff(call func() (interface{}, error), initialRetryDelay time.Durati
 	}
 
 	return results, err
+}
+
+// diffRulesJSONState suppresses diff if json values are equivalent, independant of whitespace or order of keys
+func diffRulesJSONState(_, old, new string, _ *schema.ResourceData) bool {
+	if old == "" || new == "" {
+		return old == new
+	}
+
+	encodedNew := unmarshalGeneric(new)
+	encodedOld := unmarshalGeneric(old)
+	return reflect.DeepEqual(encodedOld, encodedNew)
 }
