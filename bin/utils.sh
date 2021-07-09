@@ -65,17 +65,3 @@ read -d '' JQ_COLOURS << 'EOF' || true
     cc($text;.mag);
 EOF
 export JQ_COLOURS
-
-ensure_reqs() {
-  if [ -z $SEGMENT_CATALOG_TOKEN ]
-  then
-    echo "SEGMENT_CATALOG_TOKEN needs to be set with a valid token. Ask #segment-support to get one"
-    exit 1
-  fi
-
-  if ! command -v jq &> /dev/null
-  then
-    echo "jq is required to run this utility: https://stedolan.github.io/jq/"
-    exit 1
-  fi
-}
