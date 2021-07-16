@@ -137,15 +137,10 @@ func resourceSegmentDestinationUpdate(ctx context.Context, r *schema.ResourceDat
 	srcName := r.Get(keyDestSource).(string)
 	destName := r.Get(keyDestName).(string)
 	enabled := r.Get(keyDestEnabled).(bool)
-
-	log.Println("[INFO] Fetching current config for " + srcName)
-	d, err := client.GetDestination(srcName, destName)
-	if err != nil {
-		return diag.FromErr(err)
-	}
+	rawConfig := r.Get(keyDestConfig).(map[string]interface{})
 
 	config := []segment.DestinationConfig{}
-	if d := decodeDestinationConfig(meta.workspace, srcName, destName, d.Configs, &config); d != nil {
+	if d := decodeDestinationConfig(meta.workspace, srcName, destName, rawConfig, &config, meta.isDestinationConfigPropSupported); d != nil {
 		return *d
 	}
 
@@ -166,7 +161,7 @@ func resourceSegmentDestinationCreate(ctx context.Context, r *schema.ResourceDat
 	mode := r.Get(keyDestConMode).(string)
 	enabled := r.Get(keyDestEnabled).(bool)
 	var config []segment.DestinationConfig
-	if d := decodeDestinationConfig(meta.workspace, srcName, destName, r.Get("config"), &config); d != nil {
+	if d := decodeDestinationConfig(meta.workspace, srcName, destName, r.Get("config"), &config, meta.isDestinationConfigPropSupported); d != nil {
 		return *d
 	}
 
@@ -215,7 +210,7 @@ func encodeDestinationConfig(destination segment.Destination, encoded *map[strin
 	return nil
 }
 
-func decodeDestinationConfig(workspace string, srcName string, destName string, rawConfig interface{}, dst *[]segment.DestinationConfig) (diags *diag.Diagnostics) {
+func decodeDestinationConfig(workspace string, srcName string, destName string, rawConfig interface{}, dst *[]segment.DestinationConfig, isPropAllowed func(d string, k string) bool) (diags *diag.Diagnostics) {
 	defer func() {
 		if r := recover(); r != nil {
 			diags = diagFromErrPtr(fmt.Errorf("failed to decode destination config: %w", r.(error)))
@@ -234,8 +229,7 @@ func decodeDestinationConfig(workspace string, srcName string, destName string, 
 			return d
 		}
 
-		// TODO: Version will error on update to the Config API, remove when it's fixed
-		if k == "version" {
+		if !isPropAllowed(destName, k) {
 			continue
 		}
 
@@ -280,7 +274,7 @@ func validateConfigValue(config segment.DestinationConfig) *diag.Diagnostics {
 
 func validateDestinationConfig(i interface{}, _ cty.Path) diag.Diagnostics {
 	var c []segment.DestinationConfig
-	if d := decodeDestinationConfig("test", "test", "test", i, &c); d != nil {
+	if d := decodeDestinationConfig("test", "test", "test", i, &c, func(d string, k string) bool { return false }); d != nil {
 		return *d
 	}
 	return nil
