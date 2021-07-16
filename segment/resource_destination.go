@@ -163,12 +163,6 @@ func resourceSegmentDestinationCreate(ctx context.Context, r *schema.ResourceDat
 	destName := r.Get(keyDestName).(string)
 	id := destinationResourceId(srcName, destName)
 
-	log.Println("[INFO] Fetching current config for " + srcName)
-	_, err := client.GetDestination(srcName, destName)
-	if err != nil {
-		return diag.FromErr(err)
-	}
-
 	mode := r.Get(keyDestConMode).(string)
 	enabled := r.Get(keyDestEnabled).(bool)
 	var config []segment.DestinationConfig
@@ -176,6 +170,7 @@ func resourceSegmentDestinationCreate(ctx context.Context, r *schema.ResourceDat
 		return *d
 	}
 
+	log.Printf("[INFO] Creating destination %s for %s", destName, srcName)
 	if _, err := client.CreateDestination(srcName, destName, mode, enabled, config); err != nil {
 		return diag.FromErr(err)
 	}
