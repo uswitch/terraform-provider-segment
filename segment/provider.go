@@ -2,6 +2,7 @@ package segment
 
 import (
 	"context"
+	"log"
 
 	"github.com/ajbosco/segment-config-go/segment"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -21,6 +22,14 @@ func Provider() *schema.Provider {
 				Type:        schema.TypeString,
 				Required:    true,
 				DefaultFunc: schema.EnvDefaultFunc("SEGMENT_WORKSPACE", nil),
+			},
+			"unsupported_destination_config_props": {
+				Type:     schema.TypeSet,
+				Optional: true,
+				Elem: &schema.Schema{
+					Type: schema.TypeString,
+				},
+				DefaultFunc: func() (interface{}, error) { return schema.NewSet(schema.HashInt, []interface{}{}), nil },
 			},
 		},
 		ResourcesMap: map[string]*schema.Resource{
@@ -45,8 +54,9 @@ func providerConfigure(_ context.Context, d *schema.ResourceData) (interface{}, 
 		c := segment.NewClient(accessToken, workSpace)
 		if c != nil {
 			return ProviderMetadata{
-				client:    *c,
-				workspace: workSpace,
+				client:                           *c,
+				workspace:                        workSpace,
+				isDestinationConfigPropSupported: isDestinationConfigPropSupported(d),
 			}, diags
 		}
 	}
@@ -59,7 +69,23 @@ func providerConfigure(_ context.Context, d *schema.ResourceData) (interface{}, 
 	return nil, diags
 }
 
+// Provides a way to skip some destination configuration properties when sending them through the Config API.
+// This is a workaround to circumvent Segment's bugs in the API
+func isDestinationConfigPropSupported(d *schema.ResourceData) func(destination string, key string) bool {
+	return func(destination string, key string) bool {
+		exclusions := d.Get("unsupported_destination_config_props").(*schema.Set)
+		excluded := exclusions.Contains(destination+"/"+key) || exclusions.Contains(key)
+
+		if excluded {
+			log.Printf("Excluding config %s/%s", destination, key)
+		}
+
+		return !excluded
+	}
+}
+
 type ProviderMetadata struct {
-	client    segment.Client
-	workspace string
+	client                           segment.Client
+	workspace                        string
+	isDestinationConfigPropSupported func(destination string, key string) bool
 }
