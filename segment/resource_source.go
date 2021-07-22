@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	"github.com/uswitch/terraform-provider-segment/segment/internal/utils"
 )
 
 const (
@@ -152,7 +153,7 @@ func resourceSegmentSourceRead(_ context.Context, r *schema.ResourceData, m inte
 	client := meta.client
 	id := r.Id()
 
-	rawSource, err := withBackoff(func() (interface{}, error) { return client.GetSource(id) }, configApiInitialDelay, configApiMaxRetries)
+	rawSource, err := utils.WithBackoff(func() (interface{}, error) { return client.GetSource(id) }, configApiInitialDelay, configApiMaxRetries)
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -282,7 +283,7 @@ func encodeSourceConfig(config segment.SourceConfig) []map[string]interface{} {
 func decodeSourceConfig(rawConfigMap interface{}, dst *segment.SourceConfig) (diags *diag.Diagnostics) {
 	defer func() {
 		if r := recover(); r != nil {
-			diags = diagFromErrPtr(fmt.Errorf("failed to decode schema config into a valid SourceConfig: %w", r.(error)))
+			diags = utils.DiagFromErrPtr(fmt.Errorf("failed to decode schema config into a valid SourceConfig: %w", r.(error)))
 		}
 	}()
 
@@ -340,7 +341,7 @@ func updateSchemaConfig(r *schema.ResourceData, client segment.Client) *diag.Dia
 
 		_, err := client.UpdateSourceConfig(srcName, config)
 		if err != nil {
-			return diagFromErrPtr(err)
+			return utils.DiagFromErrPtr(err)
 		}
 	} else {
 		// We wipe the previous config out of the state as there's no more tracking plan attached
@@ -358,13 +359,13 @@ func updateTrackingPlan(r *schema.ResourceData, client segment.Client) *diag.Dia
 	if old, new := r.GetChange(keyTrackingPlan); old != new {
 		if old != "" {
 			if err := client.DeleteTrackingPlanSourceConnection(old.(string), srcName); err != nil {
-				return diagFromErrPtr(err)
+				return utils.DiagFromErrPtr(err)
 			}
 		}
 
 		if new != "" {
 			if err := client.CreateTrackingPlanSourceConnection(new.(string), srcName); err != nil {
-				return diagFromErrPtr(err)
+				return utils.DiagFromErrPtr(err)
 			}
 		}
 	}
@@ -387,14 +388,14 @@ func initTrackingPlan(tpID string, source string, client segment.Client) (string
 
 // assertTrackingPlanConnected verifies a tracking plan and a source are connected and fails otherwise
 func assertTrackingPlanConnected(trackingPlan string, src string, client segment.Client) *diag.Diagnostics {
-	rawSources, err := withBackoff(func() (interface{}, error) { return client.ListTrackingPlanSources(trackingPlan) }, configApiInitialDelay, configApiMaxRetries)
+	rawSources, err := utils.WithBackoff(func() (interface{}, error) { return client.ListTrackingPlanSources(trackingPlan) }, configApiInitialDelay, configApiMaxRetries)
 	if err != nil {
-		return diagFromErrPtr(fmt.Errorf("invalid tracking plan ID %s: %w", trackingPlan, err))
+		return utils.DiagFromErrPtr(fmt.Errorf("invalid tracking plan ID %s: %w", trackingPlan, err))
 	}
 	sources := rawSources.([]segment.TrackingPlanSourceConnection)
 
 	for _, s := range sources {
-		if pathToName(s.Source) == src {
+		if utils.PathToName(s.Source) == src {
 			return nil
 		}
 	}
@@ -410,7 +411,7 @@ func findTrackingPlanSourceConnection(source string, client segment.Client) (str
 	}
 
 	if err := cache.init(client); err != nil {
-		return "", diagFromErrPtr(err)
+		return "", utils.DiagFromErrPtr(err)
 	}
 
 	return cache.find(source), nil
@@ -434,8 +435,8 @@ func suppressSchemaConfigDiff(k, old, new string, d *schema.ResourceData) bool {
 type TrackingPlansConnectionsCache map[string]string
 
 func (cache TrackingPlansConnectionsCache) find(source string) string {
-	log.Printf("[INFO] looking for %s in cache", pathToName(source))
-	if tp := cache[pathToName(source)]; tp != "" {
+	log.Printf("[INFO] looking for %s in cache", utils.PathToName(source))
+	if tp := cache[utils.PathToName(source)]; tp != "" {
 		log.Printf("[INFO] Tracking plan cache hit for %s <-> %s", source, tp)
 		return tp
 	}
@@ -450,7 +451,7 @@ func (cache TrackingPlansConnectionsCache) add(connections []segment.TrackingPla
 
 	log.Printf("[INFO] Caching %d connections for %s", len(connections), connections[0].TrackingPlanId)
 	for _, currSrc := range connections {
-		source := pathToName(currSrc.Source)
+		source := utils.PathToName(currSrc.Source)
 		cache[source] = currSrc.TrackingPlanId
 	}
 
@@ -458,15 +459,15 @@ func (cache TrackingPlansConnectionsCache) add(connections []segment.TrackingPla
 }
 
 func (cache TrackingPlansConnectionsCache) init(client segment.Client) error {
-	rawTps, err := withBackoff(func() (interface{}, error) { return client.ListTrackingPlans() }, configApiInitialDelay, configApiMaxRetries)
+	rawTps, err := utils.WithBackoff(func() (interface{}, error) { return client.ListTrackingPlans() }, configApiInitialDelay, configApiMaxRetries)
 	if err != nil {
 		return err
 	}
 	tps := rawTps.(segment.TrackingPlans)
 
 	for _, tp := range tps.TrackingPlans {
-		tpID := pathToName(tp.Name)
-		rawSrcs, err := withBackoff(func() (interface{}, error) { return client.ListTrackingPlanSources(tpID) }, configApiInitialDelay, configApiMaxRetries)
+		tpID := utils.PathToName(tp.Name)
+		rawSrcs, err := utils.WithBackoff(func() (interface{}, error) { return client.ListTrackingPlanSources(tpID) }, configApiInitialDelay, configApiMaxRetries)
 		if err != nil {
 			return err
 		}
