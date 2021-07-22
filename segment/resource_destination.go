@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	"github.com/uswitch/terraform-provider-segment/segment/internal/utils"
 )
 
 const (
@@ -103,7 +104,7 @@ func resourceSegmentDestinationRead(_ context.Context, r *schema.ResourceData, m
 	if err := r.Set(keyDestSource, srcName); err != nil {
 		return diag.FromErr(err)
 	}
-	if err := r.Set(keyDestName, pathToName(d.Name)); err != nil {
+	if err := r.Set(keyDestName, utils.PathToName(d.Name)); err != nil {
 		return diag.FromErr(err)
 	}
 	if err := r.Set(keyDestEnabled, d.Enabled); err != nil {
@@ -192,7 +193,7 @@ func resourceSegmentDestinationDelete(_ context.Context, r *schema.ResourceData,
 
 func encodeDestinationConfig(destination segment.Destination, encoded *map[string]interface{}) *diag.Diagnostics {
 	if encoded == nil {
-		return diagFromErrPtr(errors.New("destination config encoded map cannot be nil"))
+		return utils.DiagFromErrPtr(errors.New("destination config encoded map cannot be nil"))
 	}
 
 	for _, config := range destination.Configs {
@@ -201,10 +202,10 @@ func encodeDestinationConfig(destination segment.Destination, encoded *map[strin
 			"value": config.Value,
 		})
 		if err != nil {
-			diagFromErrPtr(err)
+			utils.DiagFromErrPtr(err)
 		}
 
-		(*encoded)[pathToName(config.Name)] = string(c)
+		(*encoded)[utils.PathToName(config.Name)] = string(c)
 	}
 
 	return nil
@@ -213,7 +214,7 @@ func encodeDestinationConfig(destination segment.Destination, encoded *map[strin
 func decodeDestinationConfig(workspace string, srcName string, destName string, rawConfig interface{}, dst *[]segment.DestinationConfig, isPropAllowed func(d string, k string) bool) (diags *diag.Diagnostics) {
 	defer func() {
 		if r := recover(); r != nil {
-			diags = diagFromErrPtr(fmt.Errorf("failed to decode destination config: %w", r.(error)))
+			diags = utils.DiagFromErrPtr(fmt.Errorf("failed to decode destination config: %w", r.(error)))
 		}
 	}()
 

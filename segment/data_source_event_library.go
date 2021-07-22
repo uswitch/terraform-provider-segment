@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/uswitch/terraform-provider-segment/segment/internal/hashcode"
+	"github.com/uswitch/terraform-provider-segment/segment/internal/utils"
 )
 
 func dataSourceEventLibrary() *schema.Resource {
@@ -20,7 +21,7 @@ func dataSourceEventLibrary() *schema.Resource {
 				Type:             schema.TypeString,
 				Optional:         true,
 				ValidateFunc:     validation.StringIsJSON,
-				DiffSuppressFunc: diffRulesJSONState,
+				DiffSuppressFunc: utils.DiffRulesJSONState,
 			},
 			"json": {
 				Type:     schema.TypeString,
