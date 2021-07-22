@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	"github.com/uswitch/terraform-provider-segment/segment/internal/utils"
 )
 
 func resourceTrackingPlan() *schema.Resource {
@@ -37,13 +38,13 @@ func resourceTrackingPlan() *schema.Resource {
 				Type:             schema.TypeString,
 				Optional:         true,
 				ValidateFunc:     validation.StringIsJSON,
-				DiffSuppressFunc: diffRulesJSONState,
+				DiffSuppressFunc: utils.DiffRulesJSONState,
 			},
 			"import_from": {
 				Type:             schema.TypeString,
 				Optional:         true,
 				ValidateDiagFunc: validateEventLibConfig,
-				DiffSuppressFunc: diffRulesJSONState,
+				DiffSuppressFunc: utils.DiffRulesJSONState,
 			},
 			"create_time": {
 				Type:     schema.TypeString,
@@ -67,15 +68,6 @@ func validateEventLibConfig(i interface{}, _ cty.Path) diag.Diagnostics {
 		return diag.FromErr(err)
 	}
 	return nil
-}
-
-func unmarshalGeneric(input string) interface{} {
-	var decodedStr interface{}
-	if err := json.Unmarshal([]byte(input), &decodedStr); err != nil {
-		log.Panicln("generic unmarshal failed", err)
-	}
-
-	return decodedStr
 }
 
 func resourceTrackingPlanCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
@@ -368,7 +360,7 @@ func tpResourceV1() *schema.Resource {
 				Type:             schema.TypeString,
 				Optional:         true,
 				ValidateFunc:     validation.StringIsJSON,
-				DiffSuppressFunc: diffRulesJSONState,
+				DiffSuppressFunc: utils.DiffRulesJSONState,
 			},
 			"import_from": {
 				Type:     schema.TypeList,
