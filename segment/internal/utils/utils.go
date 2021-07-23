@@ -62,3 +62,14 @@ func DiffRulesJSONState(_, old, new string, _ *schema.ResourceData) bool {
 	encodedOld := unmarshalGeneric(old)
 	return reflect.DeepEqual(encodedOld, encodedNew)
 }
+
+// Search performs a linear search in an indexed collection and returns the index of the found item, or -1
+func Search(len int, eq func(i int) bool) int {
+	for i := 0; i < len; i++ {
+		if eq(i) {
+			return i
+		}
+	}
+
+	return -1
+}
