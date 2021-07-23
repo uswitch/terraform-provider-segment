@@ -152,7 +152,7 @@ func resourceTrackingPlanRead(_ context.Context, d *schema.ResourceData, m inter
 	libsCount := len(eventLibsFlat.Events)
 	log.Printf("[INFO] Searching %d lib events", libsCount)
 	for _, evnt := range tp.Rules.Events {
-		found := search(libsCount, func(i int) bool {
+		found := utils.Search(libsCount, func(i int) bool {
 			log.Printf("[INFO] comparing index %d -  %s == %s", i, evnt.Name, eventLibsFlat.Events[i].Name)
 			isLibEvent := evnt.Name == eventLibsFlat.Events[i].Name
 
@@ -310,16 +310,6 @@ func mergeEvents(evtLibEvents []segment.Event, tpEvents []segment.Event) []segme
 		}
 	}
 	return mergedEvents
-}
-
-func search(len int, eq func(i int) bool) int {
-	for i := 0; i < len; i++ {
-		if eq(i) {
-			return i
-		}
-	}
-
-	return -1
 }
 
 // State migrations
