@@ -151,6 +151,34 @@ func resourceTrackingPlanRead(_ context.Context, d *schema.ResourceData, m inter
 		log.Println("[ERROR] Libs extraction failed")
 		return diag.FromErr(err)
 	}
+
+	// Flatten event libraries
+	eventLibsFlat := flattenEventLibs(eventLibs)
+
+	// Remove library events
+	var sourceEvents []segment.Event
+	libsCount := len(eventLibsFlat.Events)
+	log.Printf("[INFO] Searching %d lib events", libsCount)
+	for _, evnt := range tp.Rules.Events {
+		found := search(libsCount, func(i int) bool {
+			log.Printf("[INFO] comparing index %d -  %s == %s", i, evnt.Name, eventLibsFlat.Events[i].Name)
+			isLibEvent := evnt.Name == eventLibsFlat.Events[i].Name
+
+			if isLibEvent {
+				updateEvent(eventLibs, evnt)
+			}
+
+			return isLibEvent
+		})
+		log.Printf("[INFO] %s found at %d", evnt.Name, found)
+		if found < 0 {
+			sourceEvents = append(sourceEvents, evnt)
+		}
+	}
+
+	log.Printf("[INFO] Found %d source events", len(sourceEvents))
+
+	log.Println("[INFO] Updating event libs state from remote")
 	var libsConfig string
 	if eventLibs != nil {
 		rawLibs, err := json.Marshal(eventLibs)
@@ -162,26 +190,6 @@ func resourceTrackingPlanRead(_ context.Context, d *schema.ResourceData, m inter
 	if err = d.Set("import_from", libsConfig); err != nil {
 		return diag.FromErr(err)
 	}
-
-	// Flatten event libraries
-	eventLibsFlat := flattenEventLibs(eventLibs)
-
-	// Remove library events
-	var sourceEvents []segment.Event
-	libsCount := len(eventLibsFlat.Events)
-	log.Printf("[INFO] Searching %d lib events", libsCount)
-	for _, evnt := range tp.Rules.Events {
-		found := searchEvent(libsCount, func(i int) bool {
-			log.Printf("[INFO] comparing index %d -  %s == %s", i, evnt.Name, eventLibsFlat.Events[i].Name)
-			return evnt.Name == eventLibsFlat.Events[i].Name
-		})
-		log.Printf("[INFO] %s found at %d", evnt.Name, found)
-		if found < 0 {
-			sourceEvents = append(sourceEvents, evnt)
-		}
-	}
-
-	log.Printf("[INFO] Found %d source events", len(sourceEvents))
 
 	tp.Rules.Events = sourceEvents
 
@@ -284,6 +292,16 @@ func readEventLibs(eventLibsIntfcs interface{}, ok bool) ([]segment.RuleSet, err
 	return decodedEventLibs, nil
 }
 
+func updateEvent(events []segment.RuleSet, event segment.Event) {
+	for _, rs := range events {
+		for i, ev := range rs.Events {
+			if ev.Name == event.Name {
+				rs.Events[i] = event
+			}
+		}
+	}
+}
+
 func mergeEvents(evtLibEvents []segment.Event, tpEvents []segment.Event) []segment.Event {
 	var mergedEvents []segment.Event = evtLibEvents
 	for _, ruleEvnt := range tpEvents {
@@ -302,7 +320,7 @@ func mergeEvents(evtLibEvents []segment.Event, tpEvents []segment.Event) []segme
 	return mergedEvents
 }
 
-func searchEvent(len int, eq func(i int) bool) int {
+func search(len int, eq func(i int) bool) int {
 	for i := 0; i < len; i++ {
 		if eq(i) {
 			return i
