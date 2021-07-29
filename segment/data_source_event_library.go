@@ -31,7 +31,7 @@ func dataSourceEventLibrary() *schema.Resource {
 	}
 }
 
-func dataSourceEventLibraryRead(_ context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
+func dataSourceEventLibraryRead(_ context.Context, d *schema.ResourceData, _ interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
 	// Read tracking plan rules
 	var inputRules segment.RuleSet
