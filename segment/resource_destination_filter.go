@@ -2,17 +2,166 @@ package segment
 
 import (
 	"context"
-	"log"
+	"fmt"
+	"math"
+	"path"
+	"strings"
 
 	"github.com/ajbosco/segment-config-go/segment"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/uswitch/terraform-provider-segment/segment/internal/utils"
+)
+
+const (
+	keyFilterDestination      = "destination"
+	keyFilterName             = "name"
+	keyFilterTitle            = "title"
+	keyFilterDescription      = "description"
+	keyFilterCondition        = "condition"
+	keyFilterEnabled          = "enabled"
+	keyFilterActions          = "actions"
+	keyFilterActionDrop       = "drop"
+	keyFilterActionBlock      = "block_fields"
+	keyFilterActionAllow      = "allow_fields"
+	keyFilterActionSample     = "sample"
+	keyFilterActionContext    = "context"
+	keyFilterActionTraits     = "traits"
+	keyFilterActionProperties = "properties"
+	keyFilterActionPercent    = "percent"
+	keyFilterActionPath       = "path"
 )
 
 func resourceSegmentDestinationFilter() *schema.Resource {
 	return &schema.Resource{
-		Schema:        map[string]*schema.Schema{},
+		Schema: map[string]*schema.Schema{
+			keyFilterDestination: {
+				Type:     schema.TypeString,
+				Required: true,
+			},
+			keyFilterName: {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			keyFilterTitle: {
+				Type:     schema.TypeString,
+				Required: true,
+			},
+			keyFilterDescription: {
+				Type:     schema.TypeString,
+				Required: true,
+			},
+			keyFilterCondition: {
+				Type:     schema.TypeString,
+				Required: true,
+			},
+			keyFilterEnabled: {
+				Type:     schema.TypeBool,
+				Required: true,
+			},
+			keyFilterActions: {
+				Type:     schema.TypeList,
+				Required: true,
+				MaxItems: 1,
+				MinItems: 1,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						keyFilterActionDrop: {
+							Type:     schema.TypeList,
+							Optional: true,
+							MaxItems: 1,
+							Elem: &schema.Resource{
+								Schema: map[string]*schema.Schema{},
+							},
+						},
+						keyFilterActionBlock: {
+							Type:          schema.TypeList,
+							Optional:      true,
+							MaxItems:      1,
+							Default:       nil,
+							ConflictsWith: []string{keyFilterActions + ".0." + keyFilterActionDrop + ".0"},
+							Elem: &schema.Resource{
+								Schema: map[string]*schema.Schema{
+									keyFilterActionTraits: {
+										Type: schema.TypeSet,
+										Elem: &schema.Schema{
+											Type: schema.TypeString,
+										},
+										Optional: true,
+									},
+									keyFilterActionContext: {
+										Type: schema.TypeSet,
+										Elem: &schema.Schema{
+											Type: schema.TypeString,
+										},
+										Optional: true,
+									},
+									keyFilterActionProperties: {
+										Type: schema.TypeSet,
+										Elem: &schema.Schema{
+											Type: schema.TypeString,
+										},
+										Optional: true,
+									},
+								},
+							},
+						},
+						keyFilterActionAllow: {
+							Type:          schema.TypeList,
+							Optional:      true,
+							MaxItems:      1,
+							Default:       nil,
+							ConflictsWith: []string{keyFilterActions + ".0." + keyFilterActionDrop + ".0"},
+							Elem: &schema.Resource{
+								Schema: map[string]*schema.Schema{
+									keyFilterActionTraits: {
+										Type: schema.TypeSet,
+										Elem: &schema.Schema{
+											Type: schema.TypeString,
+										},
+										Optional: true,
+									},
+									keyFilterActionContext: {
+										Type: schema.TypeSet,
+										Elem: &schema.Schema{
+											Type: schema.TypeString,
+										},
+										Optional: true,
+									},
+									keyFilterActionProperties: {
+										Type: schema.TypeSet,
+										Elem: &schema.Schema{
+											Type: schema.TypeString,
+										},
+										Optional: true,
+									},
+								},
+							},
+						},
+						keyFilterActionSample: {
+							Type:          schema.TypeSet,
+							Optional:      true,
+							Default:       nil,
+							ConflictsWith: []string{keyFilterActions + ".0." + keyFilterActionDrop + ".0"},
+							Elem: &schema.Resource{
+								Schema: map[string]*schema.Schema{
+									keyFilterActionPercent: {
+										Type:         schema.TypeFloat,
+										ValidateFunc: validation.FloatBetween(0, 1),
+										Required:     true,
+									},
+									keyFilterActionPath: {
+										Type:     schema.TypeString,
+										Optional: true,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 		CreateContext: resourceSegmentDestinationFilterCreate,
 		ReadContext:   resourceSegmentDestinationFilterRead,
 		UpdateContext: resourceSegmentDestinationFilterUpdate,
@@ -26,63 +175,33 @@ func resourceSegmentDestinationFilter() *schema.Resource {
 func resourceSegmentDestinationFilterRead(_ context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
 	meta := m.(ProviderMetadata)
 	client := meta.client
-	srcName, dstName := idToSourceAndDest(r)
 
-	d, err := client.GetDestination(srcName, dstName)
+	f, err := client.GetDestinationFilter(splitDestinationFilterId(r))
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
-	config := map[string]interface{}{}
-	if err := encodeDestinationConfig(d, &config); err != nil {
-		return *err
-	}
-
-	if err := r.Set(keyDestSource, srcName); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := r.Set(keyDestName, utils.PathToName(d.Name)); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := r.Set(keyDestEnabled, d.Enabled); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := r.Set(keyDestParent, d.Parent); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := r.Set(keyDestDisplayName, d.DisplayName); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := r.Set(keyDestConMode, d.ConnectionMode); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := r.Set(keyDestConfig, config); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := r.Set(keyDestCreateTime, d.CreateTime.String()); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := r.Set(keyDestUpdateTime, d.UpdateTime.String()); err != nil {
-		return diag.FromErr(err)
-	}
-
-	return nil
+	return utils.CatchFirst(
+		func() error { return r.Set(keyFilterTitle, f.Title) },
+		func() error { return r.Set(keyFilterDescription, f.Description) },
+		func() error { return r.Set(keyFilterEnabled, f.IsEnabled) },
+		func() error { return r.Set(keyFilterCondition, f.Conditions) },
+		func() error { return r.Set(keyFilterName, f.Name) },
+		func() error { return r.Set(keyFilterActions, encodeDestinationFilterActions(f.Actions)) },
+	)
 }
 
 func resourceSegmentDestinationFilterUpdate(ctx context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
 	meta := m.(ProviderMetadata)
 	client := meta.client
-	srcName := r.Get(keyDestSource).(string)
-	destName := r.Get(keyDestName).(string)
-	enabled := r.Get(keyDestEnabled).(bool)
-	rawConfig := r.Get(keyDestConfig).(map[string]interface{})
+	src, dest, _ := splitDestinationFilterId(r)
 
-	config := []segment.DestinationConfig{}
-	if d := decodeDestinationConfig(meta.workspace, srcName, destName, rawConfig, &config, meta.isDestinationConfigPropSupported); d != nil {
-		return *d
+	var filter segment.DestinationFilter
+	if d := decodeDestinationFilter(r, &filter); d != nil {
+		return d
 	}
 
-	if _, err := client.UpdateDestination(srcName, destName, enabled, config); err != nil {
+	if _, err := client.UpdateDestinationFilter(src, dest, filter); err != nil {
 		return diag.FromErr(err)
 	}
 
@@ -92,23 +211,21 @@ func resourceSegmentDestinationFilterUpdate(ctx context.Context, r *schema.Resou
 func resourceSegmentDestinationFilterCreate(ctx context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
 	meta := m.(ProviderMetadata)
 	client := meta.client
-	srcName := r.Get(keyDestSource).(string)
-	destName := r.Get(keyDestName).(string)
-	id := destinationResourceId(srcName, destName)
+	destinationId := r.Get(keyFilterDestination).(string)
+	srcName, dstName := destinationIdToSourceAndDest(destinationId)
 
-	mode := r.Get(keyDestConMode).(string)
-	enabled := r.Get(keyDestEnabled).(bool)
-	var config []segment.DestinationConfig
-	if d := decodeDestinationConfig(meta.workspace, srcName, destName, r.Get("config"), &config, meta.isDestinationConfigPropSupported); d != nil {
-		return *d
+	var f segment.DestinationFilter
+	if d := decodeDestinationFilter(r, &f); d != nil {
+		return d
 	}
 
-	log.Printf("[INFO] Creating destination %s for %s", destName, srcName)
-	if _, err := client.CreateDestination(srcName, destName, mode, enabled, config); err != nil {
+	created, err := client.CreateDestinationFilter(srcName, dstName, f)
+	if err != nil {
 		return diag.FromErr(err)
 	}
 
-	r.SetId(id)
+	_, id := path.Split(created.Name)
+	r.SetId(destinationFilterResourceId(srcName, dstName, id))
 
 	return resourceSegmentDestinationFilterRead(ctx, r, m)
 }
@@ -116,9 +233,9 @@ func resourceSegmentDestinationFilterCreate(ctx context.Context, r *schema.Resou
 func resourceSegmentDestinationFilterDelete(_ context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
 	meta := m.(ProviderMetadata)
 	client := meta.client
-	srcName, destName := idToSourceAndDest(r)
+	srcName, dstName, id := splitDestinationFilterId(r)
 
-	err := client.DeleteDestination(srcName, destName)
+	err := client.DeleteDestinationFilter(srcName, dstName, id)
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -128,4 +245,125 @@ func resourceSegmentDestinationFilterDelete(_ context.Context, r *schema.Resourc
 
 // Decoders
 
+func decodeDestinationFilter(r *schema.ResourceData, dst *segment.DestinationFilter) (diags diag.Diagnostics) {
+	defer func() {
+		if r := recover(); r != nil {
+			diags = diag.FromErr(fmt.Errorf("failed to decode destination filter config: %w", r.(error)))
+		}
+	}()
+
+	f := segment.DestinationFilter{
+		Name:        r.Get(keyFilterName).(string),
+		Title:       r.Get(keyFilterTitle).(string),
+		Description: r.Get(keyFilterDescription).(string),
+		Conditions:  r.Get(keyFilterCondition).(string),
+		IsEnabled:   r.Get(keyFilterEnabled).(bool),
+	}
+
+	rawActions := r.Get(keyFilterActions).([]interface{})[0].(map[string]interface{})
+
+	if len(rawActions[keyFilterActionDrop].([]interface{})) == 1 {
+		f.Actions = append(f.Actions, segment.NewDropEventAction())
+	}
+
+	if rawBlocks := rawActions[keyFilterActionBlock].([]interface{}); len(rawBlocks) > 0 {
+		fields := rawBlocks[0].(map[string]interface{})
+		context := setAsStrSlice(fields[keyFilterActionContext])
+		props := setAsStrSlice(fields[keyFilterActionProperties])
+		traits := setAsStrSlice(fields[keyFilterActionTraits])
+		f.Actions = append(f.Actions, segment.NewBlockListEventAction(props, context, traits))
+	}
+
+	if rawAllows := rawActions[keyFilterActionAllow].([]interface{}); len(rawAllows) > 0 {
+		fields := rawAllows[0].(map[string]interface{})
+		context := setAsStrSlice(fields[keyFilterActionContext])
+		props := setAsStrSlice(fields[keyFilterActionProperties])
+		traits := setAsStrSlice(fields[keyFilterActionTraits])
+		f.Actions = append(f.Actions, segment.NewAllowListEventAction(props, context, traits))
+	}
+
+	for _, rawSample := range rawActions[keyFilterActionSample].(*schema.Set).List() {
+		sample := rawSample.(map[string]interface{})
+		percent := float32(sample[keyFilterActionPercent].(float64))
+		path := sample[keyFilterActionPath].(string)
+		f.Actions = append(f.Actions, segment.NewSamplingEventAction(percent, path))
+	}
+
+	*dst = f
+
+	return nil
+}
+
+func encodeDestinationFilterActions(actions segment.DestinationFilterActions) []interface{} {
+	if len(actions) == 0 {
+		return nil
+	}
+
+	root := map[string][]interface{}{}
+	for _, action := range actions {
+		switch action.ActionType() {
+		case segment.DestinationFilterActionTypeDropEvent:
+			root[keyFilterActionDrop] = []interface{}{nil}
+		case segment.DestinationFilterActionTypeBlockList:
+			root[keyFilterActionBlock] = decodeEventDescription(action.(segment.FieldsListEventAction).Fields)
+		case segment.DestinationFilterActionTypeAllowList:
+			root[keyFilterActionAllow] = decodeEventDescription(action.(segment.FieldsListEventAction).Fields)
+		case segment.DestinationFilterActionTypeSampling:
+			root[keyFilterActionSample] = append(root[keyFilterActionSample], map[string]interface{}{
+				// We need to round so that we don't lose precision and get a diff like
+				// - 1.2345
+				// + 1.23
+				// when the expected was always 1.23
+				keyFilterActionPercent: math.Round(float64(action.(segment.SamplingEventAction).Percent*100)) / 100,
+				keyFilterActionPath:    action.(segment.SamplingEventAction).Path,
+			})
+		}
+	}
+
+	return []interface{}{root}
+}
+
+func decodeEventDescription(list segment.EventDescription) []interface{} {
+	result := map[string]interface{}{}
+
+	if list.Properties != nil && len(list.Properties.Fields) > 0 {
+		result[keyFilterActionProperties] = strSliceToSet(list.Properties.Fields)
+	}
+	if list.Context != nil && len(list.Context.Fields) > 0 {
+		result[keyFilterActionContext] = strSliceToSet(list.Context.Fields)
+	}
+	if list.Traits != nil && len(list.Traits.Fields) > 0 {
+		result[keyFilterActionTraits] = strSliceToSet(list.Traits.Fields)
+	}
+
+	return []interface{}{result}
+}
+
 // Misc Helpers
+
+func splitDestinationFilterId(r *schema.ResourceData) (sourceName string, destinationName string, filterId string) {
+	parts := strings.Split(r.Id(), "/")
+	return parts[0], parts[1], parts[2]
+}
+
+func destinationFilterResourceId(s string, d string, filterId string) string {
+	return s + "/" + d + "/" + filterId
+}
+
+func strSliceToSet(strs []string) *schema.Set {
+	result := []interface{}{}
+	for _, v := range strs {
+		result = append(result, v)
+	}
+
+	return schema.NewSet(schema.HashString, result)
+}
+
+func setAsStrSlice(s interface{}) []string {
+	list := []string{}
+	for _, v := range s.(*schema.Set).List() {
+		list = append(list, v.(string))
+	}
+
+	return list
+}

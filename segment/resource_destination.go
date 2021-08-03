@@ -86,10 +86,10 @@ func resourceSegmentDestination() *schema.Resource {
 	}
 }
 
-func resourceSegmentDestinationRead(_ context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
+func resourceSegmentDestinationRead(c context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
 	meta := m.(ProviderMetadata)
 	client := meta.client
-	srcName, dstName := idToSourceAndDest(r)
+	srcName, dstName := destinationIdToSourceAndDest(r.Id())
 
 	d, err := client.GetDestination(srcName, dstName)
 	if err != nil {
@@ -97,37 +97,18 @@ func resourceSegmentDestinationRead(_ context.Context, r *schema.ResourceData, m
 	}
 
 	config := map[string]interface{}{}
-	if err := encodeDestinationConfig(d, &config); err != nil {
-		return *err
-	}
-
-	if err := r.Set(keyDestSource, srcName); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := r.Set(keyDestName, utils.PathToName(d.Name)); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := r.Set(keyDestEnabled, d.Enabled); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := r.Set(keyDestParent, d.Parent); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := r.Set(keyDestDisplayName, d.DisplayName); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := r.Set(keyDestConMode, d.ConnectionMode); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := r.Set(keyDestConfig, config); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := r.Set(keyDestCreateTime, d.CreateTime.String()); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := r.Set(keyDestUpdateTime, d.UpdateTime.String()); err != nil {
-		return diag.FromErr(err)
-	}
+	utils.CatchFirst(
+		func() error { return encodeDestinationConfig(d, &config) },
+		func() error { return r.Set(keyDestSource, srcName) },
+		func() error { return r.Set(keyDestName, utils.PathToName(d.Name)) },
+		func() error { return r.Set(keyDestEnabled, d.Enabled) },
+		func() error { return r.Set(keyDestParent, d.Parent) },
+		func() error { return r.Set(keyDestDisplayName, d.DisplayName) },
+		func() error { return r.Set(keyDestConMode, d.ConnectionMode) },
+		func() error { return r.Set(keyDestConfig, config) },
+		func() error { return r.Set(keyDestCreateTime, d.CreateTime.String()) },
+		func() error { return r.Set(keyDestUpdateTime, d.UpdateTime.String()) },
+	)
 
 	return nil
 }
@@ -142,7 +123,7 @@ func resourceSegmentDestinationUpdate(ctx context.Context, r *schema.ResourceDat
 
 	config := []segment.DestinationConfig{}
 	if d := decodeDestinationConfig(meta.workspace, srcName, destName, rawConfig, &config, meta.isDestinationConfigPropSupported); d != nil {
-		return *d
+		return d
 	}
 
 	if _, err := client.UpdateDestination(srcName, destName, enabled, config); err != nil {
@@ -163,7 +144,7 @@ func resourceSegmentDestinationCreate(ctx context.Context, r *schema.ResourceDat
 	enabled := r.Get(keyDestEnabled).(bool)
 	var config []segment.DestinationConfig
 	if d := decodeDestinationConfig(meta.workspace, srcName, destName, r.Get("config"), &config, meta.isDestinationConfigPropSupported); d != nil {
-		return *d
+		return d
 	}
 
 	log.Printf("[INFO] Creating destination %s for %s", destName, srcName)
@@ -179,7 +160,7 @@ func resourceSegmentDestinationCreate(ctx context.Context, r *schema.ResourceDat
 func resourceSegmentDestinationDelete(_ context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
 	meta := m.(ProviderMetadata)
 	client := meta.client
-	srcName, destName := idToSourceAndDest(r)
+	srcName, destName := destinationIdToSourceAndDest(r.Id())
 
 	err := client.DeleteDestination(srcName, destName)
 	if err != nil {
@@ -191,9 +172,9 @@ func resourceSegmentDestinationDelete(_ context.Context, r *schema.ResourceData,
 
 // Decoders
 
-func encodeDestinationConfig(destination segment.Destination, encoded *map[string]interface{}) *diag.Diagnostics {
+func encodeDestinationConfig(destination segment.Destination, encoded *map[string]interface{}) error {
 	if encoded == nil {
-		return utils.DiagFromErrPtr(errors.New("destination config encoded map cannot be nil"))
+		return errors.New("destination config encoded map cannot be nil")
 	}
 
 	for _, config := range destination.Configs {
@@ -211,10 +192,10 @@ func encodeDestinationConfig(destination segment.Destination, encoded *map[strin
 	return nil
 }
 
-func decodeDestinationConfig(workspace string, srcName string, destName string, rawConfig interface{}, dst *[]segment.DestinationConfig, isPropAllowed func(d string, k string) bool) (diags *diag.Diagnostics) {
+func decodeDestinationConfig(workspace string, srcName string, destName string, rawConfig interface{}, dst *[]segment.DestinationConfig, isPropAllowed func(d string, k string) bool) (diags diag.Diagnostics) {
 	defer func() {
 		if r := recover(); r != nil {
-			diags = utils.DiagFromErrPtr(fmt.Errorf("failed to decode destination config: %w", r.(error)))
+			diags = diag.FromErr(fmt.Errorf("failed to decode destination config: %w", r.(error)))
 		}
 	}()
 
@@ -242,7 +223,7 @@ func decodeDestinationConfig(workspace string, srcName string, destName string, 
 	return nil
 }
 
-func validateConfigValue(config segment.DestinationConfig) *diag.Diagnostics {
+func validateConfigValue(config segment.DestinationConfig) diag.Diagnostics {
 	switch config.Type {
 	case "string", "password":
 		if _, ok := config.Value.(string); !ok {
@@ -276,20 +257,19 @@ func validateConfigValue(config segment.DestinationConfig) *diag.Diagnostics {
 func validateDestinationConfig(i interface{}, _ cty.Path) diag.Diagnostics {
 	var c []segment.DestinationConfig
 	if d := decodeDestinationConfig("test", "test", "test", i, &c, func(d string, k string) bool { return false }); d != nil {
-		return *d
+		return d
 	}
 	return nil
 }
 
-func configTypeError(name string, typ string, value interface{}) *diag.Diagnostics {
+func configTypeError(name string, typ string, value interface{}) diag.Diagnostics {
 	d := diag.Errorf("Unexpected config value for %s of expected type %s: %v", name, typ, value)
-	return &d
+	return d
 }
 
 // Misc Helpers
 
-func idToSourceAndDest(r *schema.ResourceData) (string, string) {
-	id := r.Id()
+func destinationIdToSourceAndDest(id string) (string, string) {
 	parts := strings.Split(id, "/")
 
 	if len(parts) > 2 {

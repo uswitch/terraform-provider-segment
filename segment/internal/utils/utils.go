@@ -73,3 +73,13 @@ func Search(len int, eq func(i int) bool) int {
 
 	return -1
 }
+
+func CatchFirst(ops ...func() error) diag.Diagnostics {
+	for _, op := range ops {
+		if err := op(); err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
+	return nil
+}
