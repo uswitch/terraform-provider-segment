@@ -33,9 +33,10 @@ func Provider() *schema.Provider {
 			},
 		},
 		ResourcesMap: map[string]*schema.Resource{
-			"tracking_plan": resourceTrackingPlan(),
-			"source":        resourceSegmentSource(),
-			"destination":   resourceSegmentDestination(),
+			"tracking_plan":              resourceTrackingPlan(),
+			"source":                     resourceSegmentSource(),
+			"destination":                resourceSegmentDestination(),
+			"segment_destination_filter": resourceSegmentDestinationFilter(),
 		},
 		DataSourcesMap: map[string]*schema.Resource{
 			"event_library": dataSourceEventLibrary(),
