@@ -199,11 +199,13 @@ func resourceSegmentSourceCreate(ctx context.Context, r *schema.ResourceData, m 
 	srcName := r.Get(keySource).(string)
 	catName := r.Get(keyCatalog).(string)
 
+	log.Println("[INFO] Creating source " + srcName)
 	if _, err := client.CreateSource(srcName, catName); err != nil {
 		return diag.FromErr(err)
 	}
 
 	revertCreation := func(d diag.Diagnostics) diag.Diagnostics {
+		log.Println("[INFO] An error occured, reverting source creation")
 		if err := client.DeleteSource(srcName); err != nil {
 			d = append(d, diag.Diagnostic{
 				Severity: diag.Warning,
@@ -214,6 +216,7 @@ func resourceSegmentSourceCreate(ctx context.Context, r *schema.ResourceData, m 
 		return d
 	}
 
+	log.Println("[INFO] Linking source to tracking plan " + r.Get("tracking_plan").(string))
 	if d := updateTrackingPlan(r, client); d != nil {
 		return revertCreation(*d)
 	}
@@ -339,6 +342,7 @@ func updateSchemaConfig(r *schema.ResourceData, client segment.Client) *diag.Dia
 			return d
 		}
 
+		log.Printf("[INFO] Updating schema config for %s <-> %s", srcName, tpID)
 		_, err := client.UpdateSourceConfig(srcName, config)
 		if err != nil {
 			return utils.DiagFromErrPtr(err)
