@@ -15,7 +15,17 @@ To build the provider first update the architecture variable in the [Makefile](h
 ```shell
 $ make build
 ```
-This will build the provider binary and move it to the `~/.terraform.d/` directory so that it's ready to be imported and used in a Terraform project.
+This will build the provider binary and move it to the `~/.terraform.d/plugins/uswitch.com/segment/segment/<PROVIDER VERSION>` directory so that it's ready to be imported and used in a Terraform project.
+
+Make sure that the version being used in the terraform project uses the one built:
+```tf
+required_providers {
+  segment = {
+    source  = "uswitch.com/segment/segment"
+    version = "<PROVIDER VERSION>"
+  }
+}
+```
 
 ### Releasing a new version
 
