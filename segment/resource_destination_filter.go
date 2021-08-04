@@ -33,6 +33,39 @@ const (
 	keyFilterActionPath       = "path"
 )
 
+var eventFilterActionSchema = schema.Schema{
+	Type:          schema.TypeList,
+	Optional:      true,
+	MaxItems:      1,
+	Default:       nil,
+	ConflictsWith: []string{keyFilterActions + ".0." + keyFilterActionDrop + ".0"},
+	Elem: &schema.Resource{
+		Schema: map[string]*schema.Schema{
+			keyFilterActionTraits: {
+				Type: schema.TypeSet,
+				Elem: &schema.Schema{
+					Type: schema.TypeString,
+				},
+				Optional: true,
+			},
+			keyFilterActionContext: {
+				Type: schema.TypeSet,
+				Elem: &schema.Schema{
+					Type: schema.TypeString,
+				},
+				Optional: true,
+			},
+			keyFilterActionProperties: {
+				Type: schema.TypeSet,
+				Elem: &schema.Schema{
+					Type: schema.TypeString,
+				},
+				Optional: true,
+			},
+		},
+	},
+}
+
 func resourceSegmentDestinationFilter() *schema.Resource {
 	return &schema.Resource{
 		Schema: map[string]*schema.Schema{
@@ -75,70 +108,8 @@ func resourceSegmentDestinationFilter() *schema.Resource {
 								Schema: map[string]*schema.Schema{},
 							},
 						},
-						keyFilterActionBlock: {
-							Type:          schema.TypeList,
-							Optional:      true,
-							MaxItems:      1,
-							Default:       nil,
-							ConflictsWith: []string{keyFilterActions + ".0." + keyFilterActionDrop + ".0"},
-							Elem: &schema.Resource{
-								Schema: map[string]*schema.Schema{
-									keyFilterActionTraits: {
-										Type: schema.TypeSet,
-										Elem: &schema.Schema{
-											Type: schema.TypeString,
-										},
-										Optional: true,
-									},
-									keyFilterActionContext: {
-										Type: schema.TypeSet,
-										Elem: &schema.Schema{
-											Type: schema.TypeString,
-										},
-										Optional: true,
-									},
-									keyFilterActionProperties: {
-										Type: schema.TypeSet,
-										Elem: &schema.Schema{
-											Type: schema.TypeString,
-										},
-										Optional: true,
-									},
-								},
-							},
-						},
-						keyFilterActionAllow: {
-							Type:          schema.TypeList,
-							Optional:      true,
-							MaxItems:      1,
-							Default:       nil,
-							ConflictsWith: []string{keyFilterActions + ".0." + keyFilterActionDrop + ".0"},
-							Elem: &schema.Resource{
-								Schema: map[string]*schema.Schema{
-									keyFilterActionTraits: {
-										Type: schema.TypeSet,
-										Elem: &schema.Schema{
-											Type: schema.TypeString,
-										},
-										Optional: true,
-									},
-									keyFilterActionContext: {
-										Type: schema.TypeSet,
-										Elem: &schema.Schema{
-											Type: schema.TypeString,
-										},
-										Optional: true,
-									},
-									keyFilterActionProperties: {
-										Type: schema.TypeSet,
-										Elem: &schema.Schema{
-											Type: schema.TypeString,
-										},
-										Optional: true,
-									},
-								},
-							},
-						},
+						keyFilterActionBlock: &eventFilterActionSchema,
+						keyFilterActionAllow: &eventFilterActionSchema,
 						keyFilterActionSample: {
 							Type:          schema.TypeSet,
 							Optional:      true,
