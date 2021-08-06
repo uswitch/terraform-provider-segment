@@ -72,7 +72,7 @@ func validateEventLibConfig(i interface{}, _ cty.Path) diag.Diagnostics {
 
 func resourceTrackingPlanCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	meta := m.(ProviderMetadata)
-	client := meta.client
+	client := meta.Client
 
 	// Read tracking plan rules
 	var tpRules segment.RuleSet
@@ -116,7 +116,7 @@ func resourceTrackingPlanRead(_ context.Context, d *schema.ResourceData, m inter
 	log.Println("[INFO] Reading tracking plans")
 	var diags diag.Diagnostics
 	meta := m.(ProviderMetadata)
-	client := meta.client
+	client := meta.Client
 
 	tp, err := client.GetTrackingPlan(d.Id())
 	if err != nil {
@@ -200,7 +200,7 @@ func resourceTrackingPlanRead(_ context.Context, d *schema.ResourceData, m inter
 func resourceTrackingPlanUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
 	meta := m.(ProviderMetadata)
-	client := meta.client
+	client := meta.Client
 
 	tpID := d.Id()
 	if d.HasChanges("display_name", "rules_json_file", "import_from") {
@@ -243,7 +243,7 @@ func resourceTrackingPlanUpdate(ctx context.Context, d *schema.ResourceData, m i
 
 func resourceTrackingPlanDelete(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	meta := m.(ProviderMetadata)
-	client := meta.client
+	client := meta.Client
 
 	err := client.DeleteTrackingPlan(d.Id())
 	if err != nil {

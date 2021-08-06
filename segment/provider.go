@@ -55,9 +55,9 @@ func providerConfigure(_ context.Context, d *schema.ResourceData) (interface{}, 
 		c := segment.NewClient(accessToken, workSpace)
 		if c != nil {
 			return ProviderMetadata{
-				client:                           *c,
-				workspace:                        workSpace,
-				isDestinationConfigPropSupported: isDestinationConfigPropSupported(d),
+				Client:                           *c,
+				Workspace:                        workSpace,
+				IsDestinationConfigPropSupported: isDestinationConfigPropSupported(d),
 			}, diags
 		}
 	}
@@ -86,7 +86,7 @@ func isDestinationConfigPropSupported(d *schema.ResourceData) func(destination s
 }
 
 type ProviderMetadata struct {
-	client                           segment.Client
-	workspace                        string
-	isDestinationConfigPropSupported func(destination string, key string) bool
+	Client                           segment.Client
+	Workspace                        string
+	IsDestinationConfigPropSupported func(destination string, key string) bool
 }
