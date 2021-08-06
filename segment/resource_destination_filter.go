@@ -145,7 +145,7 @@ func resourceSegmentDestinationFilter() *schema.Resource {
 
 func resourceSegmentDestinationFilterRead(_ context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
 	meta := m.(ProviderMetadata)
-	client := meta.client
+	client := meta.Client
 
 	f, err := client.GetDestinationFilter(splitDestinationFilterId(r))
 	if err != nil {
@@ -164,7 +164,7 @@ func resourceSegmentDestinationFilterRead(_ context.Context, r *schema.ResourceD
 
 func resourceSegmentDestinationFilterUpdate(ctx context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
 	meta := m.(ProviderMetadata)
-	client := meta.client
+	client := meta.Client
 	src, dest, _ := splitDestinationFilterId(r)
 
 	var filter segment.DestinationFilter
@@ -181,7 +181,7 @@ func resourceSegmentDestinationFilterUpdate(ctx context.Context, r *schema.Resou
 
 func resourceSegmentDestinationFilterCreate(ctx context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
 	meta := m.(ProviderMetadata)
-	client := meta.client
+	client := meta.Client
 	destinationId := r.Get(keyFilterDestination).(string)
 	srcName, dstName := destinationIdToSourceAndDest(destinationId)
 
@@ -203,7 +203,7 @@ func resourceSegmentDestinationFilterCreate(ctx context.Context, r *schema.Resou
 
 func resourceSegmentDestinationFilterDelete(_ context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
 	meta := m.(ProviderMetadata)
-	client := meta.client
+	client := meta.Client
 	srcName, dstName, id := splitDestinationFilterId(r)
 
 	err := client.DeleteDestinationFilter(srcName, dstName, id)

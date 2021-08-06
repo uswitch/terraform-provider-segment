@@ -150,7 +150,7 @@ func resourceSegmentSource() *schema.Resource {
 
 func resourceSegmentSourceRead(_ context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
 	meta := m.(ProviderMetadata)
-	client := meta.client
+	client := meta.Client
 	id := r.Id()
 
 	rawSource, err := utils.WithBackoff(func() (interface{}, error) { return client.GetSource(id) }, configApiInitialDelay, configApiMaxRetries)
@@ -195,7 +195,7 @@ func resourceSegmentSourceRead(_ context.Context, r *schema.ResourceData, m inte
 
 func resourceSegmentSourceCreate(ctx context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
 	meta := m.(ProviderMetadata)
-	client := meta.client
+	client := meta.Client
 	srcName := r.Get(keySource).(string)
 	catName := r.Get(keyCatalog).(string)
 
@@ -232,7 +232,7 @@ func resourceSegmentSourceCreate(ctx context.Context, r *schema.ResourceData, m 
 
 func resourceSegmentSourceUpdate(ctx context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
 	meta := m.(ProviderMetadata)
-	client := meta.client
+	client := meta.Client
 	srcName := r.Get(keySource).(string)
 
 	if d := updateTrackingPlan(r, client); d != nil {
@@ -250,7 +250,7 @@ func resourceSegmentSourceUpdate(ctx context.Context, r *schema.ResourceData, m 
 
 func resourceSegmentSourceDelete(_ context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
 	meta := m.(ProviderMetadata)
-	client := meta.client
+	client := meta.Client
 	id := r.Id()
 
 	err := client.DeleteSource(id)

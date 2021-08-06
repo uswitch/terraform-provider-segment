@@ -88,7 +88,7 @@ func resourceSegmentDestination() *schema.Resource {
 
 func resourceSegmentDestinationRead(c context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
 	meta := m.(ProviderMetadata)
-	client := meta.client
+	client := meta.Client
 	srcName, dstName := destinationIdToSourceAndDest(r.Id())
 
 	d, err := client.GetDestination(srcName, dstName)
@@ -115,14 +115,14 @@ func resourceSegmentDestinationRead(c context.Context, r *schema.ResourceData, m
 
 func resourceSegmentDestinationUpdate(ctx context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
 	meta := m.(ProviderMetadata)
-	client := meta.client
+	client := meta.Client
 	srcName := r.Get(keyDestSource).(string)
 	destName := r.Get(keyDestName).(string)
 	enabled := r.Get(keyDestEnabled).(bool)
 	rawConfig := r.Get(keyDestConfig).(map[string]interface{})
 
 	config := []segment.DestinationConfig{}
-	if d := decodeDestinationConfig(meta.workspace, srcName, destName, rawConfig, &config, meta.isDestinationConfigPropSupported); d != nil {
+	if d := decodeDestinationConfig(meta.Workspace, srcName, destName, rawConfig, &config, meta.IsDestinationConfigPropSupported); d != nil {
 		return d
 	}
 
@@ -135,7 +135,7 @@ func resourceSegmentDestinationUpdate(ctx context.Context, r *schema.ResourceDat
 
 func resourceSegmentDestinationCreate(ctx context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
 	meta := m.(ProviderMetadata)
-	client := meta.client
+	client := meta.Client
 	srcName := r.Get(keyDestSource).(string)
 	destName := r.Get(keyDestName).(string)
 	id := destinationResourceId(srcName, destName)
@@ -143,7 +143,7 @@ func resourceSegmentDestinationCreate(ctx context.Context, r *schema.ResourceDat
 	mode := r.Get(keyDestConMode).(string)
 	enabled := r.Get(keyDestEnabled).(bool)
 	var config []segment.DestinationConfig
-	if d := decodeDestinationConfig(meta.workspace, srcName, destName, r.Get("config"), &config, meta.isDestinationConfigPropSupported); d != nil {
+	if d := decodeDestinationConfig(meta.Workspace, srcName, destName, r.Get("config"), &config, meta.IsDestinationConfigPropSupported); d != nil {
 		return d
 	}
 
@@ -159,7 +159,7 @@ func resourceSegmentDestinationCreate(ctx context.Context, r *schema.ResourceDat
 
 func resourceSegmentDestinationDelete(_ context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
 	meta := m.(ProviderMetadata)
-	client := meta.client
+	client := meta.Client
 	srcName, destName := destinationIdToSourceAndDest(r.Id())
 
 	err := client.DeleteDestination(srcName, destName)
