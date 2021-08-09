@@ -29,7 +29,7 @@ func Provider() *schema.Provider {
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
 				},
-				DefaultFunc: func() (interface{}, error) { return schema.NewSet(schema.HashInt, []interface{}{}), nil },
+				DefaultFunc: func() (interface{}, error) { return []interface{}{}, nil },
 			},
 		},
 		ResourcesMap: map[string]*schema.Resource{
