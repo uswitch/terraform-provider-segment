@@ -2,12 +2,14 @@ package segment_test
 
 import (
 	"log"
+	"os"
 	"strings"
 	"testing"
 
+	"github.com/ajbosco/segment-config-go/segment"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-	"github.com/uswitch/terraform-provider-segment/segment"
+	"github.com/uswitch/terraform-provider-segment/segment/internal/utils"
 )
 
 func TestMain(m *testing.M) {
@@ -15,10 +17,18 @@ func TestMain(m *testing.M) {
 }
 
 func sourceSweeper(name string) *resource.Sweeper {
-	sweep := func(_ string) error {
-		meta := testAccProvider.Meta().(segment.ProviderMetadata)
-		client := meta.Client
+	var token, workspace string
+	ok := false
+	if token, ok = os.LookupEnv("SEGMENT_ACCESS_TOKEN"); !ok {
+		panic("SEGMENT_ACCESS_TOKEN must be set for acceptance tests")
+	}
+	if workspace, ok = os.LookupEnv("SEGMENT_WORKSPACE"); !ok {
+		panic("SEGMENT_WORKSPACE must be set for acceptance tests")
+	}
 
+	client := segment.NewClient(token, workspace)
+
+	sweep := func(_ string) error {
 		sources, err := client.ListSources()
 
 		log.Printf("[INFO] Sweeping through %d sources", len(sources.Sources))
@@ -26,7 +36,9 @@ func sourceSweeper(name string) *resource.Sweeper {
 		var errs error
 		deleted := 0
 		for _, source := range sources.Sources {
-			if strings.HasPrefix(source.Name, "test-acc-") {
+			src := utils.PathToName(source.Name)
+			log.Printf("[INFO] Checking source %s", src)
+			if strings.HasPrefix(src, testPrefix) {
 				log.Printf("[INFO] Deleting source %s", source.Name)
 				if multierror.Append(errs, client.DeleteSource(source.Name)) != nil {
 					deleted += 1

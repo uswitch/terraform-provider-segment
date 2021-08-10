@@ -22,3 +22,9 @@ release:
 
 test:
 	go test ./...
+
+testacc:
+	TF_ACC=1 SEGMENT_ACCESS_TOKEN=$(SEGMENT_ACCESS_TOKEN) SEGMENT_WORKSPACE=$(SEGMENT_WORKSPACE) go test ./segment -v
+
+sweep:
+	TF_ACC=1 SEGMENT_ACCESS_TOKEN=$(SEGMENT_ACCESS_TOKEN) SEGMENT_WORKSPACE=$(SEGMENT_WORKSPACE) go test ./segment -sweep t -v
