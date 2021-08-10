@@ -147,7 +147,7 @@ func resourceSegmentDestinationFilterRead(_ context.Context, r *schema.ResourceD
 	meta := m.(ProviderMetadata)
 	client := meta.Client
 
-	f, err := client.GetDestinationFilter(splitDestinationFilterId(r))
+	f, err := client.GetDestinationFilter(SplitDestinationFilterId(r.Id()))
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -165,7 +165,7 @@ func resourceSegmentDestinationFilterRead(_ context.Context, r *schema.ResourceD
 func resourceSegmentDestinationFilterUpdate(ctx context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
 	meta := m.(ProviderMetadata)
 	client := meta.Client
-	src, dest, _ := splitDestinationFilterId(r)
+	src, dest, _ := SplitDestinationFilterId(r.Id())
 
 	var filter segment.DestinationFilter
 	if d := decodeDestinationFilter(r, &filter); d != nil {
@@ -204,7 +204,7 @@ func resourceSegmentDestinationFilterCreate(ctx context.Context, r *schema.Resou
 func resourceSegmentDestinationFilterDelete(_ context.Context, r *schema.ResourceData, m interface{}) diag.Diagnostics {
 	meta := m.(ProviderMetadata)
 	client := meta.Client
-	srcName, dstName, id := splitDestinationFilterId(r)
+	srcName, dstName, id := SplitDestinationFilterId(r.Id())
 
 	err := client.DeleteDestinationFilter(srcName, dstName, id)
 	if err != nil {
@@ -312,8 +312,8 @@ func decodeEventDescription(list segment.EventDescription) []interface{} {
 
 // Misc Helpers
 
-func splitDestinationFilterId(r *schema.ResourceData) (sourceName string, destinationName string, filterId string) {
-	parts := strings.Split(r.Id(), "/")
+func SplitDestinationFilterId(id string) (sourceName string, destinationName string, filterId string) {
+	parts := strings.Split(id, "/")
 	return parts[0], parts[1], parts[2]
 }
 

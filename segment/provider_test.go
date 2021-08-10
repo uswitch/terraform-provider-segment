@@ -15,6 +15,8 @@ import (
 	provider "github.com/uswitch/terraform-provider-segment/segment"
 )
 
+const testPrefix = "test-acc"
+
 var testAccProvider *schema.Provider
 var testAccProviders map[string]func() (*schema.Provider, error)
 var testAccProviderConfigure sync.Once
@@ -74,7 +76,7 @@ type SourcePreCondition struct {
 }
 
 func (pc PreCondition) WithSource() SourcePreCondition {
-	name := acctest.RandomWithPrefix("test-acc-source")
+	name := acctest.RandomWithPrefix(testPrefix)
 	c := SourcePreCondition{name, pc.appendResource(pc.addSource(name), `
 resource "source" "%[1]s" {
 	provider = segment
@@ -93,65 +95,44 @@ type DestinationPreCondition struct {
 }
 
 func (pc SourcePreCondition) WithDestination() DestinationPreCondition {
-	destId := strings.Join([]string{pc.name, "adwords"}, "__")
+	destType := "amazon-kinesis"
+	destId := strings.Join([]string{pc.name, destType}, "__")
 	c := DestinationPreCondition{PreCondition: pc.PreCondition.appendResource(pc.addDestination(destId), `
 resource "destination" "%s" {
 	provider = segment
 
-	source          = source.%[2]s.id
-	name            = "adwords"
+	source          = source.%s.id
+	name            = "%s"
 	enabled         = true
 	connection_mode = "UNSPECIFIED"
 
 	config = {
-		#Conversion ID
-		conversionId = jsonencode({
+		stream = jsonencode({
 			type  = "string"
 			value = "983265867"
 		})
-		#Event Mappings
-		eventMappings = jsonencode({
-			type  = "mixed"
-			value = []
-		})
-		#Page Remarketing
-		pageRemarketing = jsonencode({
+
+		useMessageId = jsonencode({
 			type  = "boolean"
-			value = true
+			value = false
 		})
-		#Version
-		version = jsonencode({
-			type  = "select"
-			value = ""
-		})
-		#Fallback to Zeroed IDFA when advertisingId key not present (Server-Side Only)
-		zeroedAttribution = jsonencode({
-			type  = "boolean"
-			value = true
-		})
-		#Correct LAT Behavior
-		correctLat = jsonencode({
-			type  = "boolean"
-			value = true
-		})
-		#Link Id
-		linkId = jsonencode({
+
+		region = jsonencode({
 			type  = "string"
-			value = "abc"
+			value = "eu"
 		})
-		#Track Attribution Data
-		trackAttributionData = jsonencode({
-			type  = "boolean"
-			value = true
+
+		roleAddress = jsonencode({
+			type  = "string"
+			value = "aws:eu-west-1::abcdef"
 		})
-		"developerToken" = jsonencode(
-			{
-				type  = "string"
-				value = "efg"
-			}
-		)
+
+		secretId = jsonencode({
+			type  = "string"
+			value = "abcd"
+		})
 	}
-}`, destId, pc.name),
+}`, destId, pc.name, destType),
 	}
 
 	return c
