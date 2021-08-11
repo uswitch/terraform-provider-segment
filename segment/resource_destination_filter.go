@@ -147,18 +147,20 @@ func resourceSegmentDestinationFilterRead(_ context.Context, r *schema.ResourceD
 	meta := m.(ProviderMetadata)
 	client := meta.Client
 
-	f, err := client.GetDestinationFilter(SplitDestinationFilterId(r.Id()))
+	s, d, f := SplitDestinationFilterId(r.Id())
+	filter, err := client.GetDestinationFilter(s, d, f)
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
 	return utils.CatchFirst(
-		func() error { return r.Set(keyFilterTitle, f.Title) },
-		func() error { return r.Set(keyFilterDescription, f.Description) },
-		func() error { return r.Set(keyFilterEnabled, f.IsEnabled) },
-		func() error { return r.Set(keyFilterCondition, f.Conditions) },
-		func() error { return r.Set(keyFilterName, f.Name) },
-		func() error { return r.Set(keyFilterActions, encodeDestinationFilterActions(f.Actions)) },
+		func() error { return r.Set(keyFilterTitle, filter.Title) },
+		func() error { return r.Set(keyFilterDescription, filter.Description) },
+		func() error { return r.Set(keyFilterEnabled, filter.IsEnabled) },
+		func() error { return r.Set(keyFilterCondition, filter.Conditions) },
+		func() error { return r.Set(keyFilterName, filter.Name) },
+		func() error { return r.Set(keyFilterDestination, destinationResourceId(s, d)) },
+		func() error { return r.Set(keyFilterActions, encodeDestinationFilterActions(filter.Actions)) },
 	)
 }
 
