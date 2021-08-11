@@ -266,7 +266,7 @@ func testAccDestinationFilterActions(t *testing.T, filterResName string, f *segm
 // Config
 
 func withDestination(filterName string) func(string) string {
-	precond := PreCondition{}.WithSource().WithDestination()
+	precond := NewPreCondition().WithSource().WithDestination()
 	return func(config string) string {
 		return precond.Build(func(r PreConditionResources) string {
 			return fmt.Sprintf(config, filterName, r.Destinations[0])

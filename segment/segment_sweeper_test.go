@@ -16,6 +16,12 @@ func TestMain(m *testing.M) {
 	resource.TestMain(m)
 }
 
+// sourceSweeper allows to wipe out any lingering sources remaining after test in case the tests fail with an unexpected state.
+// It will delete any resource starting with the value of the `testPrefix` constant.
+// Use it in test init:
+// 	func init() {
+//		resource.AddTestSweepers("unique-name", sourceSweeper("unique-name"))
+//	}
 func sourceSweeper(name string) *resource.Sweeper {
 	var token, workspace string
 	ok := false
