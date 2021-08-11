@@ -28,6 +28,7 @@ func init() {
 	}
 }
 
+// testAccPreCheck verifies that the test runs in a properly set environment. It should be added to any
 func testAccPreCheck(t *testing.T) {
 	testAccProviderConfigure.Do(func() {
 		if os.Getenv("SEGMENT_ACCESS_TOKEN") == "" {
@@ -67,8 +68,6 @@ func (pc PreCondition) appendResource(r PreConditionResources, config string, ar
 		config:                pc.config + fmt.Sprintf(config, args...),
 	}
 }
-
-type PreConditions []PreCondition
 
 type SourcePreCondition struct {
 	name string
@@ -145,6 +144,26 @@ func (pc PreCondition) Build(createConfig func(res PreConditionResources) string
 	return finalConfig
 }
 
-func NewPreConditions() PreCondition {
+// PreCondition provides a way to pre-create configuration that is required by a test, but not being tested.
+// It can be created using NewPreCondition().
+// Example:
+// 	NewPreCondition().
+//		WithSource().
+//		WithDestination().
+//		Build(func (r PreConditionResources) string {
+//			return "<Config under test>"
+//		})
+// The PreConditionResources parameter provides a way to access the resource ids of the created precondition resources, so they can be referenced by the tested code.
+// Example:
+// 	func (r PreConditionResources) string {
+//			source := r.Sources[0]
+//			return fmt.Sprintf(`
+//				resource "my_resource" {
+//					source = %s
+//				}
+//			`, source)
+//	}
+// Note: PreConditionResources contains terraform resource ids, so they don't need to be wrapped in "" when being used.
+func NewPreCondition() PreCondition {
 	return PreCondition{}
 }
