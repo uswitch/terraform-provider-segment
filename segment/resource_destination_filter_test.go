@@ -50,6 +50,11 @@ func TestAccDestinationFilter_basic(t *testing.T) {
 				),
 				Config: c(testAccDestinationFilterConfigBasicUpdated),
 			},
+			{
+				ResourceName:      rName,
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
 		},
 	})
 }
