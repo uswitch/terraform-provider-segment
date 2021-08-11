@@ -40,3 +40,7 @@ A new version automatically gets released in CI when pushing a new tag. To creat
 ```shell
 $ make release TYPE=[major|minor|patch]
 ```
+
+### Writing Acceptance Tests
+
+Acceptance tests should be written for every new resource/data source. `resource_destination_filter_test.go` can be used as an example. A Segment token with read/write access to Sources and Tracking Plans will be required to run the tests and be stored in `SEGMENT_ACCESS_TOKEN`. The workspace to run the tests in must also be specified in `SEGMENT _WORKSPACE`.
