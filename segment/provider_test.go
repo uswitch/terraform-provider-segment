@@ -48,12 +48,12 @@ type PreConditionResources struct {
 }
 
 func (pcr PreConditionResources) addSource(name string) PreConditionResources {
-	pcr.Sources = append(pcr.Sources, fmt.Sprintf("source.%s.id", name))
+	pcr.Sources = append(pcr.Sources, fmt.Sprintf("segment_source.%s.id", name))
 	return pcr
 }
 
 func (pcr PreConditionResources) addDestination(id string) PreConditionResources {
-	pcr.Destinations = append(pcr.Destinations, fmt.Sprintf("destination.%s.id", id))
+	pcr.Destinations = append(pcr.Destinations, fmt.Sprintf("segment_destination.%s.id", id))
 	return pcr
 }
 
@@ -77,8 +77,7 @@ type SourcePreCondition struct {
 func (pc PreCondition) WithSource() SourcePreCondition {
 	name := acctest.RandomWithPrefix(testPrefix)
 	c := SourcePreCondition{name, pc.appendResource(pc.addSource(name), `
-resource "source" "%[1]s" {
-	provider = segment
+resource "segment_source" "%[1]s" {
 
 	# name
 	catalog_name = "catalog/sources/javascript"
@@ -97,10 +96,9 @@ func (pc SourcePreCondition) WithDestination() DestinationPreCondition {
 	destType := "amazon-kinesis"
 	destId := strings.Join([]string{pc.name, destType}, "__")
 	c := DestinationPreCondition{PreCondition: pc.PreCondition.appendResource(pc.addDestination(destId), `
-resource "destination" "%s" {
-	provider = segment
+resource "segment_destination" "%s" {
 
-	source          = source.%s.id
+	source          = segment_source.%s.id
 	name            = "%s"
 	enabled         = true
 	connection_mode = "UNSPECIFIED"
