@@ -9,8 +9,15 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
+var deprecatedTpResource = resourceTrackingPlan()
+var deprecatedSourceResource = resourceSegmentSource()
+var deprecatedDestinationResource = resourceSegmentDestination()
+
 // Provider -
 func Provider() *schema.Provider {
+	deprecatedTpResource.DeprecationMessage = "`tracking_plan` is deprecated and was renamed to `segment_tracking_plan`. Please use it instead."
+	deprecatedSourceResource.DeprecationMessage = "`source` is deprecated and was renamed to `segment_source`. Please use it instead."
+	deprecatedDestinationResource.DeprecationMessage = "`destination` is deprecated and was renamed to `segment_destination`. Please use it instead."
 	return &schema.Provider{
 		Schema: map[string]*schema.Schema{
 			"access_token": {
@@ -34,8 +41,11 @@ func Provider() *schema.Provider {
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			"segment_tracking_plan":      resourceTrackingPlan(),
+			"tracking_plan":              deprecatedTpResource,
 			"segment_source":             resourceSegmentSource(),
+			"source":                     deprecatedSourceResource,
 			"segment_destination":        resourceSegmentDestination(),
+			"destination":                deprecatedDestinationResource,
 			"segment_destination_filter": resourceSegmentDestinationFilter(),
 		},
 		DataSourcesMap: map[string]*schema.Resource{
