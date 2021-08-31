@@ -12,12 +12,14 @@ import (
 var deprecatedTpResource = resourceTrackingPlan()
 var deprecatedSourceResource = resourceSegmentSource()
 var deprecatedDestinationResource = resourceSegmentDestination()
+var deprecatedEventLibsDataSource = dataSourceEventLibrary()
 
 // Provider -
 func Provider() *schema.Provider {
 	deprecatedTpResource.DeprecationMessage = "`tracking_plan` is deprecated and was renamed to `segment_tracking_plan`. Please use it instead."
 	deprecatedSourceResource.DeprecationMessage = "`source` is deprecated and was renamed to `segment_source`. Please use it instead."
 	deprecatedDestinationResource.DeprecationMessage = "`destination` is deprecated and was renamed to `segment_destination`. Please use it instead."
+	deprecatedEventLibsDataSource.DeprecationMessage = "`event_library` is deprecated and was renamed to `segment_event_library`. Please use it instead."
 	return &schema.Provider{
 		Schema: map[string]*schema.Schema{
 			"access_token": {
@@ -50,6 +52,7 @@ func Provider() *schema.Provider {
 		},
 		DataSourcesMap: map[string]*schema.Resource{
 			"segment_event_library": dataSourceEventLibrary(),
+			"event_library":         deprecatedEventLibsDataSource,
 		},
 		ConfigureContextFunc: providerConfigure,
 	}
