@@ -95,7 +95,8 @@ type DestinationPreCondition struct {
 func (pc SourcePreCondition) WithDestination() DestinationPreCondition {
 	destType := "amazon-kinesis"
 	destId := strings.Join([]string{pc.name, destType}, "__")
-	ws := testAccProvider.Meta().(provider.ProviderMetadata).Workspace
+	// Segment enforces workspace id as a secret for Kinesis
+	ws := os.Getenv("SEGMENT_WORKSPACE")
 	c := DestinationPreCondition{PreCondition: pc.PreCondition.appendResource(pc.addDestination(destId), `
 resource "segment_destination" "%s" {
 
