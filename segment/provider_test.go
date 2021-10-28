@@ -108,7 +108,7 @@ resource "segment_destination" "%s" {
     #API Key
     apiKey = jsonencode({
       type  = "string"
-      value = "abc"
+      value = "abcdefgh"
     })
   }
 }`, destId, pc.name, destType),
