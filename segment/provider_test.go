@@ -93,10 +93,9 @@ type DestinationPreCondition struct {
 }
 
 func (pc SourcePreCondition) WithDestination() DestinationPreCondition {
-	destType := "amazon-kinesis"
+	destType := "rtb-house"
 	destId := strings.Join([]string{pc.name, destType}, "__")
 	// Segment enforces workspace id as a secret for Kinesis
-	ws := os.Getenv("SEGMENT_WORKSPACE")
 	c := DestinationPreCondition{PreCondition: pc.PreCondition.appendResource(pc.addDestination(destId), `
 resource "segment_destination" "%s" {
 
@@ -105,33 +104,14 @@ resource "segment_destination" "%s" {
 	enabled         = true
 	connection_mode = "UNSPECIFIED"
 
-	config = {
-		stream = jsonencode({
-			type  = "string"
-			value = "983265867"
-		})
-
-		useMessageId = jsonencode({
-			type  = "boolean"
-			value = false
-		})
-
-		region = jsonencode({
-			type  = "string"
-			value = "eu"
-		})
-
-		roleAddress = jsonencode({
-			type  = "string"
-			value = "aws:eu-west-1::abcdef"
-		})
-
-		secretId = jsonencode({
-			type  = "string"
-			value = "%s"
-		})
-	}
-}`, destId, pc.name, destType, ws),
+  config = {
+    #API Key
+    apiKey = jsonencode({
+      type  = "string"
+      value = "abc"
+    })
+  }
+}`, destId, pc.name, destType),
 	}
 
 	return c
