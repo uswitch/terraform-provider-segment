@@ -1,8 +1,8 @@
 ---
 layout: ""
-page_title: "Provider: Unifi"
+page_title: "Provider: Segment"
 description: |-
-  The Unifi provider provides resources to interact with a Unifi controller API.
+  The Segment provider provides resources to interact with Segment Config API.
 ---
 
 # Segment Provider
