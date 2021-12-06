@@ -14,16 +14,21 @@ func Provider() *schema.Provider {
 	return &schema.Provider{
 		Schema: map[string]*schema.Schema{
 			"access_token": {
+				Description: "A Segment Config API token, more details about it can be found the [Config API documentation](https://segment.com/docs/config-api/authentication/).",
 				Type:        schema.TypeString,
 				Required:    true,
 				DefaultFunc: schema.EnvDefaultFunc("SEGMENT_ACCESS_TOKEN", nil),
 			},
 			"workspace": {
+				Description: "The Segment workspace slug.",
 				Type:        schema.TypeString,
 				Required:    true,
 				DefaultFunc: schema.EnvDefaultFunc("SEGMENT_WORKSPACE", nil),
 			},
 			"unsupported_destination_config_props": {
+				Description: "An array of destination configuration properties which are not supported by the Segment Config API and will result in an error when applying the plan.\n" +
+					"Properties defined here get removed from the destination configuration before calling the API. These properties will need to be defined through the UI instead." +
+					"Configuration properties of type `select` are the ones resulting in an error.",
 				Type:     schema.TypeSet,
 				Optional: true,
 				Elem: &schema.Schema{

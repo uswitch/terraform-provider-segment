@@ -34,6 +34,7 @@ const (
 )
 
 var eventFilterActionSchema = schema.Schema{
+	Description:   "Filter configuration for `block_fields` and `allow_fields` actions.",
 	Type:          schema.TypeList,
 	Optional:      true,
 	MaxItems:      1,
@@ -42,23 +43,29 @@ var eventFilterActionSchema = schema.Schema{
 	Elem: &schema.Resource{
 		Schema: map[string]*schema.Schema{
 			keyFilterActionTraits: {
-				Type: schema.TypeSet,
+				Description: "A set of traits in the event body to either be allowed or blocked.",
+				Type:        schema.TypeSet,
 				Elem: &schema.Schema{
-					Type: schema.TypeString,
+					Description: "The trait name.",
+					Type:        schema.TypeString,
 				},
 				Optional: true,
 			},
 			keyFilterActionContext: {
-				Type: schema.TypeSet,
+				Description: "A set of properties in the event context to either be allowed or blocked.",
+				Type:        schema.TypeSet,
 				Elem: &schema.Schema{
-					Type: schema.TypeString,
+					Description: "The context property name.",
+					Type:        schema.TypeString,
 				},
 				Optional: true,
 			},
 			keyFilterActionProperties: {
-				Type: schema.TypeSet,
+				Description: "A set of properties in the event body to either be allowed or blocked.",
+				Type:        schema.TypeSet,
 				Elem: &schema.Schema{
-					Type: schema.TypeString,
+					Description: "The event property name.",
+					Type:        schema.TypeString,
 				},
 				Optional: true,
 			},
@@ -68,42 +75,51 @@ var eventFilterActionSchema = schema.Schema{
 
 func resourceSegmentDestinationFilter() *schema.Resource {
 	return &schema.Resource{
+		Description: "A destination filter which allows control of how events are flowing to destinations. More information on destination filters and how they are used can be found in the [Segment Destination Filters documentation](https://segment.com/docs/connections/destinations/destination-filters/).",
 		Schema: map[string]*schema.Schema{
 			keyFilterDestination: {
-				Type:     schema.TypeString,
-				Required: true,
+				Description: "The ID of the destination this filter is associated with.",
+				Type:        schema.TypeString,
+				Required:    true,
 			},
 			keyFilterName: {
-				Type:     schema.TypeString,
-				Computed: true,
+				Description: "The name of the destination fitler.",
+				Type:        schema.TypeString,
+				Computed:    true,
 			},
 			keyFilterTitle: {
-				Type:     schema.TypeString,
-				Required: true,
+				Description: "The title of the destination filter for the Segment UI.",
+				Type:        schema.TypeString,
+				Required:    true,
 			},
 			keyFilterDescription: {
-				Type:     schema.TypeString,
-				Required: true,
+				Description: "The description of the destination filter for the Segment UI.",
+				Type:        schema.TypeString,
+				Required:    true,
 			},
 			keyFilterCondition: {
-				Type:     schema.TypeString,
-				Required: true,
+				Description: "The condition of the destination filter. This is defined as a FQL statement.",
+				Type:        schema.TypeString,
+				Required:    true,
 			},
 			keyFilterEnabled: {
-				Type:     schema.TypeBool,
-				Required: true,
+				Description: "Whether the destination filter is enabled.",
+				Type:        schema.TypeBool,
+				Required:    true,
 			},
 			keyFilterActions: {
-				Type:     schema.TypeList,
-				Required: true,
-				MaxItems: 1,
-				MinItems: 1,
+				Description: "The filtering action to apply to events which match the `condition` above. Available actions are: `drop`, `sample`, `block_fields`, `allow_fields`.",
+				Type:        schema.TypeList,
+				Required:    true,
+				MaxItems:    1,
+				MinItems:    1,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						keyFilterActionDrop: {
-							Type:     schema.TypeList,
-							Optional: true,
-							MaxItems: 1,
+							Description: "Drops the event from the destination.",
+							Type:        schema.TypeList,
+							Optional:    true,
+							Default:     nil,
 							Elem: &schema.Resource{
 								Schema: map[string]*schema.Schema{},
 							},
@@ -111,6 +127,7 @@ func resourceSegmentDestinationFilter() *schema.Resource {
 						keyFilterActionBlock: &eventFilterActionSchema,
 						keyFilterActionAllow: &eventFilterActionSchema,
 						keyFilterActionSample: {
+							Description:   "Allows only a percentage of events through to the destination.",
 							Type:          schema.TypeSet,
 							Optional:      true,
 							Default:       nil,
@@ -118,13 +135,15 @@ func resourceSegmentDestinationFilter() *schema.Resource {
 							Elem: &schema.Resource{
 								Schema: map[string]*schema.Schema{
 									keyFilterActionPercent: {
+										Description:  "The percentage of events to allow.",
 										Type:         schema.TypeFloat,
 										ValidateFunc: validation.FloatBetween(0, 1),
 										Required:     true,
 									},
 									keyFilterActionPath: {
-										Type:     schema.TypeString,
-										Optional: true,
+										Description: "Events will be sampled based on the value at this path.",
+										Type:        schema.TypeString,
+										Optional:    true,
 									},
 								},
 							},

@@ -15,17 +15,20 @@ import (
 
 func dataSourceEventLibrary() *schema.Resource {
 	return &schema.Resource{
+		Description: "A data source representing an event library which is a set of common tracking plan rules which can be reused by the provider to define common attributes in multiple tracking plans.",
 		ReadContext: dataSourceEventLibraryRead,
 		Schema: map[string]*schema.Schema{
 			"rules_json_file": {
+				Description:      "The location of the JSON schema file containing the event library rules. The `file()` terraform function should be used and an absolute or relative path can be passed.",
 				Type:             schema.TypeString,
 				Optional:         true,
 				ValidateFunc:     validation.StringIsJSON,
 				DiffSuppressFunc: utils.DiffRulesJSONState,
 			},
 			"json": {
-				Type:     schema.TypeString,
-				Computed: true,
+				Description: "A string representation of the json associated with an event library.",
+				Type:        schema.TypeString,
+				Computed:    true,
 			},
 		},
 	}
