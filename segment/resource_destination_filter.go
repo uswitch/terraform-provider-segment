@@ -52,7 +52,7 @@ var eventFilterActionSchema = schema.Schema{
 				Optional: true,
 			},
 			keyFilterActionContext: {
-				Description: "A set of properties in the event context to either be allowed or blocked.",
+				Description: "A set of properties in the event context to either be allowed or blocked. Nested fields (i.e. dot-separated field names) are not supported.",
 				Type:        schema.TypeSet,
 				Elem: &schema.Schema{
 					Description: "The context property name.",
@@ -61,7 +61,7 @@ var eventFilterActionSchema = schema.Schema{
 				Optional: true,
 			},
 			keyFilterActionProperties: {
-				Description: "A set of properties in the event body to either be allowed or blocked.",
+				Description: "A set of properties in the event body to either be allowed or blocked. Nested fields (i.e. dot-separated field names) are not supported.",
 				Type:        schema.TypeSet,
 				Elem: &schema.Schema{
 					Description: "The event property name.",

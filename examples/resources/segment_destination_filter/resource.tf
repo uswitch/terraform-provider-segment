@@ -11,7 +11,6 @@ resource "segment_destination_filter" "drop_events" {
 }
 
 # Filter to sample data
-
 resource "segment_destination_filter" "sample_events" {
   destination = "test_destination"
   title       = "Users accepting marketing"
@@ -21,13 +20,12 @@ resource "segment_destination_filter" "sample_events" {
   actions {
     sample {
       percent = 0.1
-      path    = "userId"
+      path    = "anomnymousId"
     }
   }
 }
 
 # Filter to block fields
-
 resource "segment_destination_filter" "checkout_block_ip_postcode" {
   destination = "test_destination"
   title       = "No IP and postcode on Checkout"
@@ -43,7 +41,6 @@ resource "segment_destination_filter" "checkout_block_ip_postcode" {
 }
 
 # Filter to allow fields
-
 resource "segment_destination_filter" "checkout_allow_price_product" {
   destination = "test_destination"
   title       = "Checkout price and product only"
@@ -52,8 +49,7 @@ resource "segment_destination_filter" "checkout_allow_price_product" {
   enabled     = true
   actions {
     allow_fields {
-      properties = ["price"]
-      properties = ["product"]
+      properties = ["price", "product"]
     }
   }
 }
