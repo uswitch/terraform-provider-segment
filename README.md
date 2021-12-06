@@ -5,7 +5,7 @@ The `terraform-provider-segment` is a custom [Terraform](https://www.terraform.i
 ## Requirements
 
 * [Terraform](https://www.terraform.io/downloads.html) 0.14.x or higher
-* [Go](https://golang.org/) 1.16+ 
+* [Go](https://golang.org/) 1.16+
 
 ## Contributing
 
@@ -37,3 +37,7 @@ $ make release TYPE=[major|minor|patch]
 ### Writing Acceptance Tests
 
 Acceptance tests should be written for every new resource/data source. `resource_destination_filter_test.go` can be used as an example. A Segment token with read/write access to Sources and Tracking Plans will be required to run the tests and be stored in `SEGMENT_ACCESS_TOKEN`. The workspace to run the tests in must also be specified in `SEGMENT _WORKSPACE`.
+
+### Building the docs
+
+To build or update the provider documentation pages, run `go generate`.
