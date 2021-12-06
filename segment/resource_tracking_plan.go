@@ -17,6 +17,7 @@ import (
 
 func resourceTrackingPlan() *schema.Resource {
 	return &schema.Resource{
+		Description:   "A Segment tracking plan which outlines the events and properties to be collected across Segment Sources. More information can be found in the [Tracking Plans documentation](https://segment.com/docs/protocols/tracking-plan/create/).",
 		CreateContext: resourceTrackingPlanCreate,
 		ReadContext:   resourceTrackingPlanRead,
 		UpdateContext: resourceTrackingPlanUpdate,
@@ -27,34 +28,40 @@ func resourceTrackingPlan() *schema.Resource {
 		SchemaVersion: 2,
 		Schema: map[string]*schema.Schema{
 			"name": {
-				Type:     schema.TypeString,
-				Computed: true,
+				Description: "The ID of the tracking plan. *(Set by Segment).*",
+				Type:        schema.TypeString,
+				Computed:    true,
 			},
 			"display_name": {
-				Type:     schema.TypeString,
-				Required: true,
+				Description: "The name of the tracking plan in the Segment UI.",
+				Type:        schema.TypeString,
+				Required:    true,
 			},
 			"rules_json_file": {
+				Description:      "The location of the JSON schema file for this tracking plan. The `file()` function should be used together with an absolute or relative path to the file.",
 				Type:             schema.TypeString,
 				Optional:         true,
 				ValidateFunc:     validation.StringIsJSON,
 				DiffSuppressFunc: utils.DiffRulesJSONState,
 			},
 			"import_from": {
+				Description:      "The libraries to inherit events from, if any. Event libraries are defined as `data sources` and the `jsonencode([ ... ])` and `jsondecode()` functions should be used when including them, as per example above.",
 				Type:             schema.TypeString,
 				Optional:         true,
 				ValidateDiagFunc: validateEventLibConfig,
 				DiffSuppressFunc: utils.DiffRulesJSONState,
 			},
 			"create_time": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
+				Description: "The creation time of the tracking plan. *(Set by Segment).*",
+				Type:        schema.TypeString,
+				Optional:    true,
+				Computed:    true,
 			},
 			"update_time": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
+				Description: "The last time the tracking plan was updated. *(Set by Segment).*",
+				Type:        schema.TypeString,
+				Optional:    true,
+				Computed:    true,
 			},
 		},
 		StateUpgraders: []schema.StateUpgrader{
