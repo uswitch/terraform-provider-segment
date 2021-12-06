@@ -31,45 +31,55 @@ const (
 
 func resourceSegmentDestination() *schema.Resource {
 	return &schema.Resource{
+		Description: "A destination connection on Segment. More information on destinations and how to use them can be found in the [Segment Destinations documentation](https://segment.com/docs/connections/destinations/).",
 		Schema: map[string]*schema.Schema{
 			keyDestSource: {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
+				Description: "The Segment source name this destination is connecting to.",
+				Type:        schema.TypeString,
+				Required:    true,
+				ForceNew:    true,
 			},
 			keyDestName: {
-				Type:     schema.TypeString,
-				Required: true,
+				Description: "The name of the destination.",
+				Type:        schema.TypeString,
+				Required:    true,
 			},
 			keyDestEnabled: {
-				Type:     schema.TypeBool,
-				Required: true,
+				Description: "Whether the destination is enabled and can receive events.",
+				Type:        schema.TypeBool,
+				Required:    true,
 			},
 			keyDestParent: {
-				Type:     schema.TypeString,
-				Computed: true,
+				Description: "The source the destination is associated with. *(Set by Segment)*.",
+				Type:        schema.TypeString,
+				Computed:    true,
 			},
 			keyDestDisplayName: {
-				Type:     schema.TypeString,
-				Computed: true,
+				Description: "The display name of the destination in the Segment UI. *(Set by Segment)*.",
+				Type:        schema.TypeString,
+				Computed:    true,
 			},
 			keyDestCreateTime: {
-				Type:     schema.TypeString,
-				Computed: true,
+				Description: "The time the destination was created. *(Set by Segment)*.",
+				Type:        schema.TypeString,
+				Computed:    true,
 			},
 			keyDestUpdateTime: {
-				Type:     schema.TypeString,
-				Computed: true,
+				Description: "The time the destination was last updated. *(Set by Segment)*.",
+				Type:        schema.TypeString,
+				Computed:    true,
 			},
 			keyDestConMode: {
+				Description:  "The connection type of the destination. Available values are: `UNSPECIFIED`, `CLOUD`, `DEVICE`.",
 				Type:         schema.TypeString,
 				Optional:     true,
 				Computed:     true,
 				ValidateFunc: validation.StringInSlice([]string{"UNSPECIFIED", "CLOUD", "DEVICE"}, false),
 			},
 			keyDestConfig: {
-				Type:     schema.TypeMap,
-				Required: true,
+				Description: "The configuration of the destination. This varies according to the destination. The specific fields can be retrieved by making a request to the [Get Destination](https://reference.segmentapis.com/#94aed763-b2bd-4ee6-8b5b-b6d39aacba21) endpoint.",
+				Type:        schema.TypeMap,
+				Required:    true,
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
 				},
