@@ -34,12 +34,13 @@ const (
 )
 
 var eventFilterActionSchema = schema.Schema{
-	Description:   "Filter configuration for `block_fields` and `allow_fields` actions.",
-	Type:          schema.TypeList,
-	Optional:      true,
-	MaxItems:      1,
-	Default:       nil,
-	ConflictsWith: []string{keyFilterActions + ".0." + keyFilterActionDrop + ".0"},
+	Description: "Filter configuration for `block_fields` and `allow_fields` actions.",
+	Type:        schema.TypeList,
+	Optional:    true,
+	MaxItems:    1,
+	Default:     nil,
+	// Removing this line as `MaxItems` for `keyFilterActionDrop` is commented out and schema validation fails.
+	// ConflictsWith: []string{keyFilterActions + ".0." + keyFilterActionDrop + ".0"},
 	Elem: &schema.Resource{
 		Schema: map[string]*schema.Schema{
 			keyFilterActionTraits: {
@@ -119,7 +120,10 @@ func resourceSegmentDestinationFilter() *schema.Resource {
 							Description: "Drops the event from the destination.",
 							Type:        schema.TypeList,
 							Optional:    true,
-							Default:     nil,
+							// Commenting this out as the terraform plugin docs plugin does not support nested empty objects and generation of docs is failing.
+							// More details in this issue: https://github.com/hashicorp/terraform-plugin-docs/issues/100
+							// MaxItems:    1,
+							Default: nil,
 							Elem: &schema.Resource{
 								Schema: map[string]*schema.Schema{},
 							},
@@ -127,11 +131,12 @@ func resourceSegmentDestinationFilter() *schema.Resource {
 						keyFilterActionBlock: &eventFilterActionSchema,
 						keyFilterActionAllow: &eventFilterActionSchema,
 						keyFilterActionSample: {
-							Description:   "Allows only a percentage of events through to the destination.",
-							Type:          schema.TypeSet,
-							Optional:      true,
-							Default:       nil,
-							ConflictsWith: []string{keyFilterActions + ".0." + keyFilterActionDrop + ".0"},
+							Description: "Allows only a percentage of events through to the destination.",
+							Type:        schema.TypeSet,
+							Optional:    true,
+							Default:     nil,
+							// Removing this line as `MaxItems` for `keyFilterActionDrop` is commented out and schema validation fails.
+							// ConflictsWith: []string{keyFilterActions + ".0." + keyFilterActionDrop + ".0"},
 							Elem: &schema.Resource{
 								Schema: map[string]*schema.Schema{
 									keyFilterActionPercent: {
