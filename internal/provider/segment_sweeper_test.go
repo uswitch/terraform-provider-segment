@@ -1,4 +1,4 @@
-package segment_test
+package provider_test
 
 import (
 	"log"
@@ -9,7 +9,7 @@ import (
 	"github.com/ajbosco/segment-config-go/segment"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-	"github.com/uswitch/terraform-provider-segment/segment/internal/utils"
+	"github.com/uswitch/terraform-provider-segment/internal/utils"
 )
 
 func TestMain(m *testing.M) {

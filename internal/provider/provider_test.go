@@ -1,4 +1,4 @@
-package segment_test
+package provider_test
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
-	provider "github.com/uswitch/terraform-provider-segment/segment"
+	"github.com/uswitch/terraform-provider-segment/internal/provider"
 )
 
 const testPrefix = "test-acc"

@@ -1,11 +1,11 @@
-package segment_test
+package provider_test
 
 import (
 	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/uswitch/terraform-provider-segment/segment"
+	"github.com/uswitch/terraform-provider-segment/internal/provider"
 )
 
 func TestResourceInstanceStateUpgradeV1(t *testing.T) {
@@ -44,7 +44,7 @@ func TestResourceInstanceStateUpgradeV1(t *testing.T) {
 
 	for testName, test := range tests {
 		t.Run(testName, func(t *testing.T) {
-			result, err := segment.TpV1V2Upgrader().Upgrade(context.Background(), test.v1Config, nil)
+			result, err := provider.TpV1V2Upgrader().Upgrade(context.Background(), test.v1Config, nil)
 			assert.NoError(t, err)
 			assert.NotNil(t, result)
 
