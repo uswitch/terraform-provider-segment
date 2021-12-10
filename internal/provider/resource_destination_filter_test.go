@@ -1,4 +1,4 @@
-package segment_test
+package provider_test
 
 import (
 	"errors"
@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/stretchr/testify/assert"
-	provider "github.com/uswitch/terraform-provider-segment/segment"
+	provider "github.com/uswitch/terraform-provider-segment/internal/provider"
 )
 
 func init() {
