@@ -1,4 +1,9 @@
 VERSION?=$(shell git describe --tags --always --abbrev=0)
+EXE=./build/terraform-provider-segment_$(VERSION)_$(OS)_$(ARCH)
+
+.PHONY: build
+build:
+	go build -o $(EXE)
 
 .PHONY: release
 release:

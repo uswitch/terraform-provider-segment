@@ -9,35 +9,33 @@ The `terraform-provider-segment` is a custom [Terraform](https://www.terraform.i
 
 ## Contributing
 
-### Building the provider
+### Adding Dependencies
 
-To build the provider first update the architecture variable in the [Makefile](https://github.com/uswitch/terraform-provider-segment/blob/main/Makefile#L4) to your system architecture (supported architectures by Terraform can be found [here](https://www.terraform.io/docs/registry/providers/os-arch.html)) and then run:
+This provider uses [Go modules](https://github.com/golang/go/wiki/Modules).
+Please see the Go documentation for the most up to date information about using Go modules.
+
+To add a new dependency `github.com/author/dependency` to your Terraform provider:
+
+```
+go get github.com/author/dependency
+go mod tidy
+```
+
+Then commit the changes to `go.mod` and `go.sum`.
+
+### Developing the Provider
+
+If you wish to work on the provider, you'll first need [Go](http://www.golang.org) installed on your machine (see [Requirements](#requirements) above).
+
+To build the provider run:
 ```shell
 $ make build
 ```
-This will build the provider binary and move it to the `~/.terraform.d/plugins/uswitch.com/segment/segment/<PROVIDER VERSION>` directory so that it's ready to be imported and used in a Terraform project.
+This will build the provider binary and move it to the `bin/` directory.
 
-Make sure that the version being used in the terraform project uses the one built:
-```tf
-required_providers {
-  segment = {
-    source  = "uswitch.com/segment/segment"
-    version = "<PROVIDER VERSION>"
-  }
-}
-```
+To generate or update documentation, run `go generate`.
 
-### Releasing a new version
-
-A new version automatically gets released in CI when pushing a new tag. To create a new release conveniently, use the following command from the `main` branch:
-```shell
-$ make release TYPE=[major|minor|patch]
-```
 
 ### Writing Acceptance Tests
 
 Acceptance tests should be written for every new resource/data source. `resource_destination_filter_test.go` can be used as an example. A Segment token with read/write access to Sources and Tracking Plans will be required to run the tests and be stored in `SEGMENT_ACCESS_TOKEN`. The workspace to run the tests in must also be specified in `SEGMENT _WORKSPACE`.
-
-### Building the docs
-
-To build or update the provider documentation pages, run `go generate`.
