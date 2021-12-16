@@ -1,4 +1,4 @@
-# terraform-provider-segment                                                                    |
+# terraform-provider-segment
 
 The `terraform-provider-segment` is a custom [Terraform](https://www.terraform.io/) plugin to manage Segment infrastructure via code.
 
