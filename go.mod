@@ -6,7 +6,6 @@ require (
 	cloud.google.com/go v0.90.0 // indirect
 	cloud.google.com/go/storage v1.16.0 // indirect
 	github.com/agext/levenshtein v1.2.3 // indirect
-	github.com/ajbosco/segment-config-go v0.2.1-0.20210805165446-656fb67c4581
 	github.com/apparentlymart/go-cidr v1.1.0 // indirect
 	github.com/aws/aws-sdk-go v1.40.17 // indirect
 	github.com/fatih/color v1.12.0 // indirect
@@ -31,6 +30,7 @@ require (
 	github.com/oklog/run v1.1.0 // indirect
 	github.com/stretchr/testify v1.7.0
 	github.com/ulikunitz/xz v0.5.10 // indirect
+	github.com/uswitch/segment-config-go v0.3.1-0.20220727153937-9c07255ddd4e
 	golang.org/x/crypto v0.0.0-20210711020723-a769d52b0f97 // indirect
 	golang.org/x/net v0.0.0-20210805182204-aaa1db679c0d // indirect
 	golang.org/x/oauth2 v0.0.0-20210805134026-6f1e6394065a // indirect

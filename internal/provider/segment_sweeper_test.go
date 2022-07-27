@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ajbosco/segment-config-go/segment"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/uswitch/segment-config-go/segment"
 	"github.com/uswitch/terraform-provider-segment/internal/utils"
 )
 
