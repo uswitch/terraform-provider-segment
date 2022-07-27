@@ -4,9 +4,9 @@ import (
 	"context"
 	"log"
 
-	"github.com/ajbosco/segment-config-go/segment"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/uswitch/segment-config-go/segment"
 )
 
 // Provider -

@@ -7,11 +7,11 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/ajbosco/segment-config-go/segment"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/stretchr/testify/assert"
+	"github.com/uswitch/segment-config-go/segment"
 	provider "github.com/uswitch/terraform-provider-segment/internal/provider"
 )
 

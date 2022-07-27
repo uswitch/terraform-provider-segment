@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"strconv"
 
-	"github.com/ajbosco/segment-config-go/segment"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	"github.com/uswitch/segment-config-go/segment"
 	"github.com/uswitch/terraform-provider-segment/internal/hashcode"
 	"github.com/uswitch/terraform-provider-segment/internal/utils"
 )
